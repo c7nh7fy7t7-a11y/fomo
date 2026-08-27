@@ -1,0 +1,17 @@
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { Avatar } from '@/components/Avatar';
+import { Person } from '@/data/seed';
+import { supabase } from '@/lib/supabase';
+import { useApp } from '@/context/AppContext';
+import { colors } from '@/theme/colors';
+
+type Row={id:string;full_name:string;username:string;avatar_url:string|null};
+export default function BlockedUsers(){const router=useRouter();const {unblockUser}=useApp();const [rows,setRows]=useState<Row[]>([]);const [loading,setLoading]=useState(true);
+ const load=async()=>{if(!supabase){setLoading(false);return;}const {data,error}=await supabase.rpc('get_my_blocked_profiles');if(!error)setRows((data??[]) as Row[]);setLoading(false);}; useEffect(()=>{load();},[]);
+ const person=(r:Row):Person=>({id:r.id,name:r.full_name,username:r.username,avatar:r.avatar_url??undefined,program:'',year:'',initials:r.full_name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()||'?'});
+ return <SafeAreaView style={styles.safe}><View style={styles.head}><Pressable onPress={()=>router.back()} style={styles.back}><Ionicons name="arrow-back" color={colors.text} size={21}/></Pressable><Text style={styles.title}>Blocked users</Text><View style={{width:38}}/></View><View style={styles.content}>{loading?<Text style={styles.empty}>Loading…</Text>:rows.length?rows.map(r=><View key={r.id} style={styles.row}><Avatar person={person(r)} size={44}/><View style={{flex:1,marginLeft:10}}><Text style={styles.name}>{r.full_name}</Text><Text style={styles.user}>@{r.username}</Text></View><Pressable onPress={()=>Alert.alert('Unblock this person?','They will be able to find and interact with you again.',[{text:'Cancel',style:'cancel'},{text:'Unblock',onPress:async()=>{await unblockUser(r.id);setRows(cur=>cur.filter(x=>x.id!==r.id));}}])} style={styles.button}><Text style={styles.buttonText}>Unblock</Text></Pressable></View>):<View style={styles.emptyBox}><Ionicons name="shield-checkmark-outline" color={colors.subtle} size={32}/><Text style={styles.emptyTitle}>No blocked users</Text><Text style={styles.empty}>People you block will appear here.</Text></View>}</View></SafeAreaView>}
+const styles=StyleSheet.create({safe:{flex:1,backgroundColor:colors.bg},head:{height:58,paddingHorizontal:12,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},back:{width:38,height:38,borderRadius:19,alignItems:'center',justifyContent:'center'},title:{color:colors.text,fontSize:15,fontWeight:'900'},content:{padding:14},row:{height:66,borderRadius:20,backgroundColor:colors.surface,marginBottom:7,paddingHorizontal:10,flexDirection:'row',alignItems:'center',borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},name:{color:colors.text,fontSize:12,fontWeight:'800'},user:{color:colors.muted,fontSize:9.5,marginTop:2},button:{height:31,borderRadius:16,backgroundColor:colors.surface2,paddingHorizontal:11,alignItems:'center',justifyContent:'center'},buttonText:{color:colors.text,fontSize:9,fontWeight:'900'},emptyBox:{height:260,alignItems:'center',justifyContent:'center'},emptyTitle:{color:colors.text,fontSize:15,fontWeight:'900',marginTop:10},empty:{color:colors.muted,fontSize:10.5,marginTop:5}});

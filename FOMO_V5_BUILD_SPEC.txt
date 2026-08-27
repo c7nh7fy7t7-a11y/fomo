@@ -1,0 +1,1243 @@
+# FOMO V5 — Social Core + Map Pinning + Feed + Profiles + Full Visual Redesign
+
+Start from the latest STABLE working version of FOMO.
+
+This is not a prototype redesign.
+
+The goal of V5 is to make FOMO feel like a legitimate consumer social app that university students would actually want installed on their phones.
+
+The biggest priorities are:
+
+1. Add precise interactive location pinning for events.
+2. Build a fully functional social Feed.
+3. Add likes/reactions/comments/tagging/views.
+4. Build clean modern user profiles.
+5. Preserve and improve 1-to-1 messaging.
+6. Completely redesign the app visually.
+7. Use the ATTACHED BLACK-AND-WHITE LOWERCASE "fomo" image as the official branding direction.
+8. Make dark mode the permanent/default interface.
+9. Preserve all current Supabase/event/friend/privacy functionality.
+10. Prepare the app for multi-user testing and eventually TestFlight.
+
+Do NOT sacrifice backend reliability for visual polish.
+
+==================================================
+THE FOMO PRODUCT
+==================================================
+
+FOMO is a university social discovery network.
+
+It helps students discover and participate in:
+
+- Parties
+- Study sessions
+- Club events
+- Campus events
+- Pickup sports
+- Rec leagues
+- Social gatherings
+- Other student activities
+
+The product loop is:
+
+DISCOVER
+↓
+JOIN
+↓
+ATTEND
+↓
+POST
+↓
+INTERACT
+↓
+DISCOVER AGAIN
+
+FOMO should feel like the live social layer of university life.
+
+It should NOT feel like:
+
+- a party-only app
+- Tinder
+- Instagram copied with campus branding
+- a university portal
+- a SaaS dashboard
+- an AI-generated prototype
+
+==================================================
+OFFICIAL FOMO BRANDING
+==================================================
+
+IMPORTANT:
+
+Use the ATTACHED BLACK-AND-WHITE LOWERCASE "fomo" image as the official branding reference.
+
+The supplied image contains:
+
+- black rounded-square background
+- white lowercase "fomo"
+- extremely simple typography
+- clean high contrast
+- understated premium appearance
+
+This image should directly influence the entire interface.
+
+Do NOT generate a replacement logo.
+
+Do NOT use:
+
+- an F symbol
+- heartbeat icon
+- location pin logo
+- people icon
+- purple logo
+- gradient logo
+- another AI-generated emblem
+
+The lowercase:
+
+fomo
+
+wordmark is the brand.
+
+==================================================
+APP ICON
+==================================================
+
+Use the supplied FOMO logo image as the basis of the actual app icon.
+
+Preserve:
+
+- black background
+- white lowercase wordmark
+- rounded square
+- minimal composition
+- high contrast
+
+Resize/crop properly for Expo, iOS and Android.
+
+Do not stretch the wordmark.
+
+Make sure it remains readable at small Home Screen icon sizes.
+
+==================================================
+SPLASH SCREEN
+==================================================
+
+Use:
+
+BLACK BACKGROUND
+
+with:
+
+white lowercase "fomo"
+
+centered.
+
+Nothing else.
+
+No tagline.
+
+No giant loading animation.
+
+No purple gradient.
+
+No illustrations.
+
+A subtle fade animation is acceptable.
+
+It should feel clean and premium when launching.
+
+==================================================
+VISUAL IDENTITY
+==================================================
+
+FOMO is now DARK-FIRST.
+
+There is NO light mode.
+
+REMOVE the dark-mode toggle entirely.
+
+Do NOT create a light interface and simply invert the colors.
+
+Design the app natively for dark mode.
+
+Primary background:
+
+#050505
+
+Secondary background:
+
+#0D0D0F
+
+Elevated surfaces:
+
+#141416
+#19191C
+
+Primary text:
+
+#FFFFFF
+
+Secondary text:
+
+#A3A3AA
+
+Muted text:
+
+#707078
+
+Borders:
+
+#242428
+
+The brand itself should remain predominantly:
+
+BLACK
+WHITE
+GRAY
+
+Do NOT make purple the main brand color anymore.
+
+User-generated photography should supply most of the color.
+
+Photos of:
+
+- people
+- events
+- parties
+- sports
+- campus
+- clubs
+- study spaces
+
+should naturally bring life to the otherwise restrained interface.
+
+==================================================
+DESIGN PHILOSOPHY
+==================================================
+
+The previous Campus Pulse design became too blocky.
+
+Fix this.
+
+Bring back the softer, rounder visual feeling from earlier FOMO versions, but make it substantially more polished.
+
+The new FOMO should feel:
+
+- dark
+- smooth
+- rounded
+- social
+- image-driven
+- detailed
+- premium
+- youthful
+- slightly playful
+- nighttime
+- human-designed
+- alive
+
+It should NOT feel:
+
+- boxy
+- rigid
+- corporate
+- sterile
+- flat
+- generic
+- excessively minimal
+- AI-generated
+
+==================================================
+IMPORTANT UI RULE
+==================================================
+
+DO NOT BUILD:
+
+rectangle
+rectangle
+rectangle
+rectangle
+
+down every screen.
+
+Not everything needs to be inside a card.
+
+Use:
+
+- typography
+- spacing
+- imagery
+- separators
+- overlays
+- rounded photography
+- bottom sheets
+- overlapping avatars
+- floating controls
+- subtle depth
+
+to organize information.
+
+==================================================
+ROUNDNESS / DEPTH
+==================================================
+
+Use softer geometry throughout FOMO.
+
+Examples:
+
+- 18–26px radii on primary cards
+- circular profile pictures
+- rounded event imagery
+- rounded message bubbles
+- rounded bottom sheets
+- curved floating navigation
+- subtle borders
+- subtle shadows
+- carefully layered surfaces
+
+Do NOT make every element exactly the same radius.
+
+Use variety so the design feels intentional and human.
+
+==================================================
+HOME STRUCTURE
+==================================================
+
+Home should contain two primary experiences:
+
+DISCOVER
+
+and
+
+FEED
+
+Use a clean top switch/control:
+
+Discover     Feed
+
+Do NOT create another bottom tab for Feed.
+
+==================================================
+DISCOVER
+==================================================
+
+Discover answers:
+
+"What is happening next?"
+
+Use a vertical scrolling interface.
+
+Bring back strong imagery.
+
+Possible structure:
+
+fomo
+
+Tonight
+
+[Featured event]
+
+Friends are going
+
+[compact events]
+
+Around campus
+
+[events]
+
+This weekend
+
+[events]
+
+Do NOT create Tinder-style swipe cards.
+
+No left/right swiping.
+
+==================================================
+EVENT CARD DESIGN
+==================================================
+
+Use multiple visual sizes.
+
+Featured events can have larger photography.
+
+Normal events should be more compact.
+
+Example:
+
+[rounded event image]
+
+Friday Night
+
+Tonight · 10 PM
+
+College Quarter
+
+[small overlapping avatars]
+
+Fox, Eric + 5 friends
+
+82 going
+
+Use imagery and typography instead of surrounding every piece of information with boxes.
+
+==================================================
+PRIORITY 1 — EVENT LOCATION PINNING
+==================================================
+
+Completely improve event location creation.
+
+When creating an event:
+
+"Where is it?"
+
+[Search or enter location]
+
+[Interactive map]
+
+The host should be able to:
+
+- tap anywhere on map
+- move pin
+- drag pin
+- zoom
+- pan
+- confirm pin
+
+Button:
+
+USE THIS LOCATION
+
+Store latitude/longitude in Supabase.
+
+==================================================
+PRIVATE LOCATION SECURITY
+==================================================
+
+For request/private events:
+
+The host specifies:
+
+PUBLIC AREA
+
+Example:
+
+College Quarter
+
+and:
+
+EXACT LOCATION
+
+Example:
+
+specific apartment / house / room
+
+Unauthorized users receive ONLY:
+
+- public label
+- approximate map position if appropriate
+
+Approved/Going users receive:
+
+- exact coordinates
+- precise pin
+- protected address
+
+Hosts always see their own exact location.
+
+This MUST be protected by Supabase/backend authorization.
+
+Do NOT simply download the exact address and hide it with React Native UI.
+
+==================================================
+MAIN MAP
+==================================================
+
+The Map tab should feel like a live campus map.
+
+Use small attractive event markers.
+
+Category markers:
+
+Social
+Study
+Clubs
+Sports
+Campus
+
+Avoid giant default Google/Apple pins.
+
+Tap marker:
+
+Open rounded bottom sheet.
+
+Show:
+
+[event image]
+
+EVENT NAME
+
+Time
+
+Public location
+
+Friends going
+
+Attendance
+
+VIEW EVENT
+
+If authorized, use exact coordinates.
+
+Otherwise use approximate/public location.
+
+==================================================
+PRIORITY 2 — FULL FEED
+==================================================
+
+Feed answers:
+
+"What happened / what's happening?"
+
+The Feed should NOT simply be Instagram.
+
+Every post should have SOCIAL + EVENT context.
+
+Example:
+
+Ethan
+
+at College Quarter Party
+
+with Fox, Eric + 3 others · 12m
+
+[large photo]
+
+insane night
+
+♡ 24     💬 8
+
+248 views
+
+==================================================
+CREATE POST
+==================================================
+
+Create a simple posting flow.
+
+CREATE POST
+
+1. Choose Photo
+2. Caption
+3. Where was this?
+4. Select Event
+5. Who's in this?
+6. Tag People
+7. Post
+
+Posting should take less than 30 seconds.
+
+V1 only needs one image per post.
+
+Multiple photos can come later.
+
+==================================================
+FEED DATABASE
+==================================================
+
+Add clean backend structures for:
+
+feed_posts
+feed_post_media
+feed_post_tags
+feed_post_views
+feed_reactions
+feed_comments
+
+Use proper foreign keys.
+
+Avoid duplicated profile/event data.
+
+==================================================
+EVENT LINKING
+==================================================
+
+Posts can optionally link to an existing FOMO event.
+
+Display:
+
+at Engineering Mixer
+
+or
+
+from Friday Night
+
+Event names are tappable.
+
+Tap event name:
+
+Open event page.
+
+This is one of FOMO's most important differentiators from Instagram.
+
+==================================================
+TAGGING
+==================================================
+
+Allow users to tag multiple FOMO accounts.
+
+Use user search.
+
+Example:
+
+with Fox, Eric + 4 others
+
+Tagged names open profiles.
+
+Users must be able to remove themselves from a tag.
+
+Never permanently force someone to remain tagged.
+
+==================================================
+LIKES
+==================================================
+
+Add standard likes.
+
+Heart icon:
+
+♡
+♥
+
+Users can like/unlike.
+
+Prevent duplicate likes.
+
+Persist in Supabase.
+
+Use optimistic UI so the interaction feels instant.
+
+==================================================
+REACTIONS
+==================================================
+
+Also support:
+
+❤️
+🔥
+😂
+😮
+
+One reaction per user per post.
+
+They can:
+
+- change reaction
+- remove reaction
+
+Do not show giant emoji menus permanently.
+
+Use a small popover / long-press / compact interaction.
+
+==================================================
+COMMENTS
+==================================================
+
+Support:
+
+- comment
+- view comments
+- delete your own comment
+
+V1 comments are flat.
+
+No replies/threads yet.
+
+Example:
+
+View all 8 comments
+
+Use realtime updates where sensible.
+
+==================================================
+POST VIEWS
+==================================================
+
+Track post views.
+
+Avoid inflating counts through rapid refresh/reopening.
+
+Use sensible deduplication.
+
+Display subtly:
+
+248 views
+
+Views should NOT dominate the interface.
+
+==================================================
+FEED ORDER
+==================================================
+
+Use chronological order initially.
+
+Newest first.
+
+Do NOT build an algorithm yet.
+
+Do NOT build AI recommendations.
+
+==================================================
+PRIORITY 3 — PROFILES
+==================================================
+
+Completely redesign user profiles.
+
+They should feel familiar and immediately understandable without copying another app exactly.
+
+Profile structure:
+
+[large circular profile photo]
+
+Ethan Currie
+
+@ethan
+
+University of Saskatchewan
+Computer Science · 2028
+
+[Add Friend] [Message]
+
+Stats:
+
+Friends
+Posts
+Events
+
+==================================================
+PROFILE VIEWS
+==================================================
+
+Track profile views.
+
+Do NOT turn profiles into popularity contests.
+
+The profile owner may see:
+
+Profile views
+Post views
+
+Other users should not necessarily see someone's profile-view count.
+
+Keep this subtle.
+
+==================================================
+PROFILE TABS
+==================================================
+
+POSTS
+
+EVENTS
+
+TAGGED
+
+POSTS:
+
+Show user's Feed photography/content.
+
+Use an attractive image grid or mixed media layout.
+
+EVENTS:
+
+Hosting
+Going
+Past
+
+TAGGED:
+
+Posts where this user has been tagged.
+
+==================================================
+PROFILE SOCIAL FEATURES
+==================================================
+
+Users can:
+
+- add friend
+- accept request
+- remove friend
+- message
+- view posts
+- view tagged posts
+- see allowed events
+
+No followers.
+
+No following.
+
+FOMO uses FRIENDS.
+
+==================================================
+PROFILE UI
+==================================================
+
+Do NOT create:
+
+Profile Card
+Stats Card
+Bio Card
+Posts Card
+
+Instead build a flowing social profile.
+
+Use:
+
+- profile image
+- typography
+- stat row
+- subtle dividers
+- tab navigation
+- photo grid
+- natural spacing
+
+Make it feel like an actual consumer app.
+
+==================================================
+MESSAGING
+==================================================
+
+Build/preserve 1-to-1 DMs.
+
+Conversation list:
+
+[Avatar]
+
+Fox
+
+last message...
+
+2m
+
+Conversation screen:
+
+rounded messages
+dark background
+white/gray incoming
+clean slightly brighter outgoing
+timestamps
+input bar
+
+Keep message styling primarily monochrome.
+
+Realtime delivery required.
+
+Do NOT build group chats yet.
+
+==================================================
+BOTTOM NAVIGATION
+==================================================
+
+Use:
+
+Home
+Map
+Create
+Messages
+Profile
+
+Create should be visually identifiable without being ridiculous.
+
+The navigation should feel:
+
+- floating
+- curved
+- smooth
+- dark
+- subtle
+
+Selected:
+
+white
+
+Unselected:
+
+gray
+
+Do not create five huge boxes.
+
+==================================================
+EVENT DETAIL PAGE
+==================================================
+
+Create a rich event page.
+
+Use:
+
+large rounded event image
+
+Event title
+
+Host profile
+
+Time
+
+Location
+
+Friend attendance
+
+Total going
+
+RSVP action
+
+Map
+
+Posts/photos from event
+
+Keep the page flowing.
+
+Avoid excessive stacked cards.
+
+==================================================
+FRIEND SOCIAL PROOF
+==================================================
+
+Use overlapping avatars frequently.
+
+Example:
+
+[Fox avatar]
+[Eric avatar]
+[another avatar]
+
+Fox, Eric + 5 friends going
+
+This should help FOMO feel socially alive.
+
+==================================================
+ANIMATION
+==================================================
+
+Use subtle animations.
+
+Examples:
+
+- heart like
+- reaction
+- comment sheet
+- Discover/Feed switch
+- map sheet
+- RSVP transition
+- message send
+- profile tabs
+- post appearing
+
+Animations should be quick.
+
+No excessive bouncing.
+
+No flashy AI-style effects.
+
+==================================================
+REALTIME
+==================================================
+
+Use Supabase Realtime selectively for:
+
+- messages
+- reactions
+- likes
+- comments
+- attendance
+- join requests
+- approvals
+
+Do not subscribe every screen to every table.
+
+==================================================
+BACKEND SECURITY
+==================================================
+
+Keep RLS enabled.
+
+A user must NEVER be able to:
+
+- edit someone else's post
+- delete another user's post
+- delete another user's comment
+- access unauthorized DMs
+- access private locations
+- approve themselves
+- impersonate another user
+- change another user's profile
+- manipulate someone else's RSVP
+
+Authorization must exist at the database/backend level.
+
+==================================================
+STORAGE
+==================================================
+
+Use Supabase Storage properly for:
+
+- avatars
+- event photos
+- feed photos
+
+Use appropriate storage policies.
+
+Do not expose privileged/service-role credentials.
+
+==================================================
+PERFORMANCE
+==================================================
+
+Feed must be performant.
+
+Use:
+
+- pagination
+- lazy loading
+- image caching
+- compressed images
+- thumbnails where appropriate
+- efficient queries
+
+Do NOT download every post ever created.
+
+Avoid N+1 Supabase requests for every Feed item.
+
+==================================================
+ERROR HANDLING
+==================================================
+
+Never display raw database responses.
+
+BAD:
+
+HTTP 500 {...}
+
+GOOD:
+
+Couldn't post that.
+
+Try again in a moment.
+
+Log technical details internally.
+
+==================================================
+KEEP EXISTING WORKING FEATURES
+==================================================
+
+Do NOT break:
+
+- signup
+- login
+- profiles
+- avatars
+- friends
+- event creation
+- categories
+- RSVP
+- request to join
+- host approve/decline
+- protected locations
+- map
+- event photos
+- logout/login persistence
+- multi-user Supabase state
+
+==================================================
+DO NOT ADD IN V5
+==================================================
+
+No:
+
+- stories
+- video feed
+- followers
+- marketplace
+- dating
+- Uber
+- ticketing
+- subscriptions
+- group chats
+- streaks
+- AI recommendations
+
+==================================================
+V5 MULTI-USER SUCCESS TEST
+==================================================
+
+ETHAN:
+
+Creates:
+
+Friday Night
+
+Pins exact party location.
+
+ERIC:
+
+Sees event.
+
+Does NOT see exact location.
+
+Requests access.
+
+ETHAN:
+
+Approves Eric.
+
+ERIC:
+
+Exact map pin appears.
+
+FOX:
+
+Joins event.
+
+ETHAN:
+
+Creates Feed post.
+
+Uses party photo.
+
+Links:
+
+Friday Night
+
+Tags:
+
+Fox
+Eric
+
+FOX:
+
+Sees Feed post.
+
+Likes it.
+
+Reacts 🔥.
+
+Comments.
+
+ERIC:
+
+Sees himself tagged.
+
+Opens Ethan's profile.
+
+Sees:
+
+posts
+events
+tagged posts
+
+ERIC:
+
+Messages Ethan:
+
+yo
+
+ETHAN:
+
+Message arrives without refresh.
+
+Then:
+
+close all three apps.
+
+reopen.
+
+Everything remains.
+
+==================================================
+NETWORK TEST
+==================================================
+
+Ethan, Fox and Eric must be able to use FOMO simultaneously while on:
+
+- different Wi-Fi networks
+- cellular
+- different physical locations
+
+The Supabase backend remains the shared source of truth.
+
+==================================================
+BRAND SUCCESS TEST
+==================================================
+
+The attached FOMO app icon should look believable sitting next to:
+
+Instagram
+Spotify
+Snapchat
+TikTok
+
+Then opening the app should feel like entering the SAME brand.
+
+Black.
+White.
+Photography.
+Smooth motion.
+Rounded UI.
+Social activity.
+
+The interface should not suddenly become purple or look unrelated to the icon.
+
+==================================================
+VISUAL SUCCESS TEST
+==================================================
+
+Ask:
+
+"Would a university student willingly keep this app on their Home Screen?"
+
+It should feel:
+
+premium
+dark
+social
+detailed
+smooth
+human
+rounded
+image-heavy
+alive
+
+It should NOT feel:
+
+blocky
+AI generated
+corporate
+Tinder-like
+unfinished
+like a school project
+
+==================================================
+FINAL BUILD ORDER
+==================================================
+
+DO THIS IN ORDER:
+
+1. Preserve stable V4 working copy.
+2. Add V5 database migration.
+3. Add location pinning.
+4. Build Feed backend.
+5. Build Feed UI.
+6. Add likes/reactions.
+7. Add comments.
+8. Add tagging.
+9. Add views.
+10. Redesign profiles.
+11. Integrate messaging.
+12. Apply full black/white dark redesign.
+13. Integrate supplied FOMO branding assets.
+14. Add realtime.
+15. Optimize performance.
+16. Test with Ethan/Fox/Eric.
+17. Fix all blocking bugs.
+18. Prepare TestFlight build.
+
+Do not call V5 complete until the entire multi-user success test passes.

@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "fomo",
+    "slug": "fomo-v6-3-liquid-social",
+    "version": "0.6.3",
+    "orientation": "portrait",
+    "scheme": "fomo",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "FOMO uses your photos and videos for your profile, events, and feed posts.",
+          "cameraPermission": "FOMO can use your camera for profile, event, and feed media.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0B0D0F",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain"
+        }
+      ],
+      "expo-sqlite"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "icon": "./assets/icon.png",
+      "bundleIdentifier": "com.fomo.campus"
+    },
+    "android": {
+      "package": "com.fomo.campus",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0B0D0F"
+      }
+    }
+  }
+}

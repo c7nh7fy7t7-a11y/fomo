@@ -1,0 +1,1344 @@
+# FOMO V5.2 — VISUAL POLISH, MEDIA, NAVIGATION & CREATE EXPERIENCE
+
+START FROM THE CURRENT WORKING FOMO V5.1 BUILD.
+
+V5.1 has now been tested successfully across multiple phones using Expo Tunnel.
+
+Confirmed working:
+
+- authentication
+- signup/login
+- events
+- event creation
+- event joining
+- request/approval system
+- protected exact locations
+- map
+- Feed
+- photo posting
+- likes
+- double-tap likes
+- reactions
+- comments
+- comment timestamps
+- tagging
+- profiles
+- profile views
+- messaging
+- realtime
+- Supabase persistence
+- multi-user usage
+- cross-network usage through Expo Tunnel
+
+DO NOT unnecessarily rewrite these systems.
+
+V5.2 is primarily a UX/UI refinement version.
+
+The goal is to take FOMO from:
+
+"functional social app"
+
+to:
+
+"a social app that actually feels polished, colorful, fluid and enjoyable to use."
+
+==================================================
+V5.2 MAIN GOALS
+==================================================
+
+1. Make Discover / Feed navigation larger and more prominent.
+2. Allow horizontal swiping between Discover and Feed.
+3. Completely improve photo/media sizing.
+4. Remove the forced square-photo appearance.
+5. Add proper video posting.
+6. Redesign the Create button experience.
+7. Fix clipping at the bottom of the Map screen.
+8. Add tasteful color throughout FOMO.
+9. Replace the overly-black background with richer charcoal tones.
+10. Add significantly more visual polish and personality.
+11. Preserve all currently working functionality.
+
+This should feel like an evolution of FOMO rather than another complete redesign.
+
+==================================================
+1. REDESIGN DISCOVER / FEED CONTROL
+==================================================
+
+The current:
+
+Discover     Feed
+
+control at the top of Home is too small and understated.
+
+Make these two sections a strong visual anchor.
+
+Center the control horizontally.
+
+Make the labels noticeably larger.
+
+Example:
+
+              Discover       Feed
+              ━━━━━━━━
+
+or another clean social-app style.
+
+Requirements:
+
+- centered
+- approximately equal width
+- larger font
+- easy to tap
+- clearly visible
+- selected page obvious
+- clean animated selected indicator
+
+Do NOT make them giant rectangular buttons.
+
+They should still feel elegant.
+
+Use typography and a sliding indicator rather than two bulky cards.
+
+==================================================
+SWIPE BETWEEN DISCOVER AND FEED
+==================================================
+
+Users should be able to change pages in TWO ways:
+
+1. Tap Discover / Feed
+2. Swipe horizontally
+
+Example:
+
+Discover
+
+→ swipe left →
+
+Feed
+
+Feed
+
+→ swipe right →
+
+Discover
+
+The animation should follow the user's finger naturally.
+
+The top selection indicator should move/change at the same time.
+
+Use a proper horizontal pager / gesture system.
+
+Do NOT fake this with a gesture that fires only after the swipe finishes.
+
+It should feel native.
+
+IMPORTANT:
+
+Horizontal page swiping must not interfere with normal vertical scrolling inside the Feed or Discover screen.
+
+Vertical movement should continue to scroll normally.
+
+A horizontal gesture should require enough horizontal intent that normal scrolling does not accidentally switch pages.
+
+==================================================
+2. COMPLETELY IMPROVE MEDIA SIZING
+==================================================
+
+Current Feed photos look too square.
+
+REMOVE the forced square image design.
+
+Photos should respect their original proportions much more naturally.
+
+The Feed should intelligently support:
+
+PORTRAIT
+
+LANDSCAPE
+
+NEAR-SQUARE
+
+WIDE
+
+TALL
+
+images.
+
+Do NOT place every image inside the same square container.
+
+==================================================
+DYNAMIC IMAGE ASPECT RATIOS
+==================================================
+
+Use the real source media dimensions.
+
+Example:
+
+Portrait photo:
+
+┌────────────────────────┐
+│                        │
+│                        │
+│         PHOTO          │
+│                        │
+│                        │
+│                        │
+└────────────────────────┘
+
+Landscape:
+
+┌────────────────────────┐
+│         PHOTO          │
+│                        │
+└────────────────────────┘
+
+Near-square:
+
+Use a naturally appropriate ratio.
+
+The Feed should feel more photographic.
+
+==================================================
+NO BLACK LETTERBOX BORDERS
+==================================================
+
+Do NOT show ugly black strips beside or above photos.
+
+Because the rest of the application is already dark, letterboxing makes the interface look unfinished.
+
+Instead:
+
+Use the media's actual aspect ratio where practical.
+
+Set:
+
+width = available Feed width
+
+and derive height from the image's natural aspect ratio.
+
+Use sensible minimum and maximum heights.
+
+For extremely tall/wide images:
+
+allow a small intelligent crop using cover-style behavior rather than huge empty borders.
+
+Never stretch or distort an image.
+
+==================================================
+MEDIA CONTAINER
+==================================================
+
+Feed photography should feel immersive.
+
+Use:
+
+- near edge-to-edge media
+- subtle rounded corners
+- approximately 18–22px corner radius
+- media that visually dominates the post
+- minimal unnecessary padding around the image
+
+Do NOT wrap the photograph inside three layers of cards.
+
+==================================================
+3. ADD VIDEO POSTS
+==================================================
+
+The Create experience should now support:
+
+PHOTO
+
+VIDEO
+
+PARTY / EVENT
+
+Video does NOT mean creating a TikTok-style video feed.
+
+It simply means Feed posts can contain a video instead of a photo.
+
+==================================================
+VIDEO POSTING
+==================================================
+
+Allow users to:
+
+Choose video
+
+Preview video
+
+Add caption
+
+Link event
+
+Tag friends
+
+Post
+
+Videos should upload through Supabase Storage.
+
+Extend the existing Feed media architecture cleanly rather than creating an entirely unrelated post system.
+
+Media should have a type such as:
+
+image
+video
+
+==================================================
+VIDEO FEED UI
+==================================================
+
+Videos should appear naturally within the normal Feed.
+
+Use the original video aspect ratio where possible.
+
+Display:
+
+video thumbnail / first frame
+
+play button
+
+duration where available
+
+Tap:
+
+play video
+
+Do NOT autoplay every video simultaneously.
+
+Do NOT create a full-screen endless video feed.
+
+For V5.2, normal inline playback is enough.
+
+Only actively playing videos should consume significant resources.
+
+==================================================
+VIDEO STORAGE
+==================================================
+
+Update backend/storage policies safely.
+
+Maintain RLS.
+
+Users may only create media associated with posts they own.
+
+Never expose service-role credentials.
+
+Use reasonable limits for:
+
+- file size
+- supported formats
+- upload errors
+
+If upload fails:
+
+do not create a permanently broken post.
+
+==================================================
+4. REDESIGN THE CREATE BUTTON
+==================================================
+
+Currently the ability to create a Feed post is too hidden.
+
+The center Create navigation button should become a clear social creation hub.
+
+When the user taps:
+
+CREATE
+
+open a polished bottom sheet / creation tray.
+
+==================================================
+CREATE SHEET
+==================================================
+
+Show three large, obvious choices:
+
+┌─────────────────────────┐
+│ 📷   Photo              │
+│ Share something         │
+└─────────────────────────┘
+
+┌─────────────────────────┐
+│ ▶   Video               │
+│ Post a moment           │
+└─────────────────────────┘
+
+┌─────────────────────────┐
+│ ✦   Make an Event       │
+│ Put something on campus │
+└─────────────────────────┘
+
+Use better icons than emoji in the actual application.
+
+Options should be very clear.
+
+Do NOT make the user guess what the + button does.
+
+==================================================
+CREATE PHOTO
+==================================================
+
+PHOTO opens the existing Feed-post creation flow.
+
+Choose image.
+
+Caption.
+
+Event.
+
+Tags.
+
+Post.
+
+==================================================
+CREATE VIDEO
+==================================================
+
+VIDEO opens the new video-post flow.
+
+Choose video.
+
+Preview.
+
+Caption.
+
+Event.
+
+Tags.
+
+Post.
+
+==================================================
+MAKE EVENT
+==================================================
+
+MAKE EVENT opens the existing event creation flow.
+
+Do NOT break:
+
+map pinning
+privacy
+location security
+event cover
+categories
+request system
+
+==================================================
+CREATE SHEET VISUAL DESIGN
+==================================================
+
+This is one place where cards ARE appropriate.
+
+Use three clear selectable surfaces.
+
+Make them:
+
+- rounded
+- large enough to understand instantly
+- visually separated
+- beautifully animated
+- easy to tap
+- not excessively tall
+
+Use icon + title + one-line explanation.
+
+Opening animation should feel smooth.
+
+A subtle background blur/dim is encouraged.
+
+==================================================
+5. MAP SCREEN FIX
+==================================================
+
+There is currently a layout problem where available parties/events near the bottom of the Map screen are partially hidden/cut off.
+
+FIX THIS PROPERLY.
+
+Do not simply add a random margin.
+
+Account for:
+
+- iPhone safe area
+- bottom navigation height
+- gesture indicator
+- Map screen sheet height
+- dynamic screen sizes
+
+==================================================
+MAP EVENT TRAY
+==================================================
+
+The Map should have a proper floating/bottom sheet for nearby events.
+
+Example:
+
+[ MAP ]
+
+────────────
+
+Tonight near you                         ↑
+
+[event]
+
+[event]
+
+[event]
+
+The event list must remain fully scrollable.
+
+The final event must always be completely accessible above the bottom navigation.
+
+Use correct:
+
+contentInset
+safeAreaInsets
+bottomPadding
+
+depending on the final implementation.
+
+==================================================
+MAP SHEET STATES
+==================================================
+
+Ideally support:
+
+COLLAPSED
+
+Shows:
+
+Nearby · 6 events
+
+PARTIAL
+
+Shows several events.
+
+EXPANDED
+
+Shows larger nearby-event list.
+
+Keep the actual map visible behind it.
+
+Make transitions smooth.
+
+==================================================
+6. FOMO IS TOO BLACK
+==================================================
+
+The current app uses too much near-pure black.
+
+Keep FOMO DARK MODE ONLY.
+
+DO NOT create light mode.
+
+But soften the interface substantially.
+
+Instead of:
+
+#050505 everywhere
+
+move toward layered dark charcoal.
+
+Suggested direction:
+
+PRIMARY BACKGROUND
+
+#111214
+
+or
+
+#101114
+
+SECONDARY BACKGROUND
+
+#15171A
+
+SURFACE
+
+#1B1D21
+
+RAISED SURFACE
+
+#22242A
+
+SUBTLE BORDER
+
+#2C2E34
+
+PRIMARY TEXT
+
+#F7F7F8
+
+SECONDARY TEXT
+
+#A7A9B0
+
+MUTED
+
+#72757D
+
+True black can still appear in:
+
+- splash screen
+- app icon
+- photography overlays
+- navigation shadows
+
+But it should NOT cover every pixel of every screen.
+
+==================================================
+7. ADD COLOR
+==================================================
+
+FOMO currently needs more personality.
+
+The black/white FOMO branding stays.
+
+DO NOT redesign the logo.
+
+However, the interface can now introduce tasteful accent colors.
+
+The goal is:
+
+dark neutral foundation + controlled social color.
+
+==================================================
+PRIMARY ACCENT
+==================================================
+
+Use a sophisticated violet/indigo accent.
+
+Example family:
+
+#7C5CFC
+#8B6CFF
+#6D5AE6
+
+Do NOT make every component purple.
+
+Use primarily for:
+
+- selected controls
+- interaction highlights
+- links
+- small glows
+- active states
+- Create emphasis
+- unread message indicators
+
+==================================================
+SECONDARY ACCENTS
+==================================================
+
+Use limited category colors.
+
+Example:
+
+SOCIAL / PARTY
+
+warm pink / coral
+
+STUDY
+
+soft blue
+
+CLUBS
+
+violet
+
+SPORTS
+
+mint / green
+
+CAMPUS
+
+amber
+
+These colors should appear in:
+
+- small icons
+- map markers
+- category pills
+- tiny accents
+- subtle gradients
+
+Do NOT turn entire event cards into bright colored blocks.
+
+==================================================
+COLOR THROUGH PHOTOGRAPHY
+==================================================
+
+User photos should remain the main visual source of color.
+
+Do not put heavy purple filters over photos.
+
+Let real photos breathe.
+
+==================================================
+8. DAZZLE THE INTERFACE
+==================================================
+
+V5.2 should feel noticeably more designed.
+
+Add polish without making it obnoxious.
+
+Use:
+
+- soft translucent surfaces
+- subtle gradients
+- occasional blur
+- small colored glows
+- layered photography
+- overlapping avatars
+- polished icons
+- animated counters
+- smoother page transitions
+- visual hierarchy
+- better typography
+- richer empty states
+- context-aware accent colors
+- subtle haptics where appropriate
+
+==================================================
+GRADIENT RULE
+==================================================
+
+Unlike older FOMO versions, subtle gradients are now allowed.
+
+BUT:
+
+Use them sparingly.
+
+Good:
+
+slight charcoal → charcoal gradient
+
+subtle purple glow behind Create
+
+soft image-overlay gradients for readability
+
+selected-tab highlight
+
+Bad:
+
+giant neon purple gradient covering every screen
+
+==================================================
+9. FEED POST REDESIGN
+==================================================
+
+Keep the existing Feed behavior.
+
+Improve the styling.
+
+Example:
+
+[Avatar] Ethan
+         at Friday Night · 3m
+
+[dynamic-ratio photograph]
+
+insane night
+
+♥ 24     💬 8     🔥 5
+
+Fox, Eric + 3 others liked this
+
+View all 8 comments
+
+Make the social context easier to visually scan.
+
+==================================================
+POST HEADER
+==================================================
+
+Use:
+
+larger avatar
+
+strong author name
+
+smaller contextual line
+
+Example:
+
+Ethan
+at Friday Night · 12m
+
+or:
+
+Ethan
+with Fox, Eric + 3 · 12m
+
+Avoid excessive metadata.
+
+==================================================
+POST ACTIONS
+==================================================
+
+Keep:
+
+heart
+
+comments
+
+reactions
+
+views
+
+But simplify visual clutter.
+
+Double-tap photo/video remains supported.
+
+Keep the accidental-scroll protection already implemented.
+
+==================================================
+COMMENTS
+==================================================
+
+KEEP the existing relative timestamps.
+
+Examples:
+
+3s
+48s
+1m
+17m
+1h
+5h
+1d
+4d
+
+Prefer the cleaner shortened version inside comment rows:
+
+3s
+1m
+1h
+1d
+
+rather than:
+
+3 seconds ago
+
+unless more context is required.
+
+==================================================
+10. DISCOVER SCREEN POLISH
+==================================================
+
+Discover should visually contrast slightly with Feed.
+
+Discover is:
+
+WHAT CAN I DO?
+
+Feed is:
+
+WHAT ARE PEOPLE DOING?
+
+Use this distinction.
+
+==================================================
+DISCOVER HERO
+==================================================
+
+Example:
+
+Good evening
+
+What's happening?
+
+[Featured Event]
+
+Then:
+
+Tonight
+
+Friends are going
+
+Around campus
+
+This weekend
+
+Do not overfill the top.
+
+==================================================
+FEATURED EVENT
+==================================================
+
+Use:
+
+large image
+
+soft gradient overlay
+
+event title
+
+time
+
+location
+
+friends going
+
+category accent
+
+Example:
+
+┌────────────────────────────┐
+│                            │
+│       EVENT PHOTO          │
+│                            │
+│  Friday Night              │
+│  Tonight · 10PM            │
+│  ● Fox + 7 friends         │
+└────────────────────────────┘
+
+Make this one of the prettiest components in FOMO.
+
+==================================================
+11. NAVIGATION POLISH
+==================================================
+
+Keep:
+
+Home
+Map
+Create
+Messages
+Profile
+
+Improve visual consistency.
+
+Give active navigation items a touch of color.
+
+For example:
+
+selected icon = white + subtle violet glow
+
+inactive = muted gray
+
+Create = slightly stronger accent
+
+Do NOT make Create look like an unrelated floating neon button.
+
+==================================================
+12. HAPTICS
+==================================================
+
+Add subtle haptic feedback where appropriate.
+
+Examples:
+
+double tap like
+
+reaction
+
+successful post
+
+successful event creation
+
+tab change
+
+Create sheet option
+
+Do not vibrate for every tiny touch.
+
+==================================================
+13. MICRO-ANIMATIONS
+==================================================
+
+Add polished small animations.
+
+Examples:
+
+Discover ↔ Feed tab indicator slides
+
+Feed page follows finger while swiping
+
+heart pops during double tap
+
+Create sheet rises from bottom
+
+Map sheet expands
+
+new message appears
+
+reaction changes
+
+post successfully publishes
+
+Keep animations:
+
+quick
+
+subtle
+
+smooth
+
+==================================================
+14. EMPTY STATES
+==================================================
+
+Make empty screens feel intentional.
+
+Bad:
+
+No posts.
+
+Good:
+
+Nothing here yet.
+
+Be the first to share what's happening.
+
+[Post something]
+
+Same for:
+
+Messages
+
+Events
+
+Tagged posts
+
+Map areas
+
+Comments
+
+==================================================
+15. DO NOT BREAK THESE FEATURES
+==================================================
+
+Absolutely preserve:
+
+authentication
+
+session persistence
+
+Supabase connection
+
+RLS
+
+private locations
+
+event creation
+
+map pinning
+
+event joining
+
+request-to-join
+
+host approval
+
+friend system
+
+Feed
+
+photo posts
+
+likes
+
+double-tap likes
+
+reactions
+
+comments
+
+comment timestamps
+
+tags
+
+profiles
+
+profile views
+
+messages
+
+realtime
+
+multi-user support
+
+Expo Tunnel support
+
+==================================================
+16. DO NOT REINTRODUCE LOGIN SWIPE BUG
+==================================================
+
+Authenticated Home must remain the navigation root.
+
+A user should NEVER be able to:
+
+swipe from the side
+
+and accidentally return to:
+
+Login
+
+Signup
+
+Welcome
+
+Keep iOS interactive back gesture disabled where authentication boundaries require it.
+
+Logging out must remain the intentional way to return to authentication.
+
+==================================================
+17. VIDEO PERFORMANCE
+==================================================
+
+Be careful when introducing video.
+
+Do not:
+
+preload every Feed video
+
+autoplay every video
+
+download full-resolution videos offscreen
+
+Use:
+
+lazy loading
+
+thumbnail/previews
+
+play only when requested
+
+stop playback when sufficiently offscreen
+
+reasonable compression
+
+==================================================
+18. V5.2 TEST PLAN
+==================================================
+
+After implementation, test:
+
+DISCOVER / FEED
+
+Tap Feed.
+
+Swipe back to Discover.
+
+Swipe back to Feed.
+
+Scroll vertically aggressively.
+
+Verify pages do NOT accidentally switch.
+
+PHOTO TEST
+
+Upload portrait photo.
+
+Upload landscape photo.
+
+Upload square photo.
+
+Verify:
+
+no stretching
+
+no ugly black borders
+
+no forced square crop
+
+VIDEO TEST
+
+Create video post.
+
+Link event.
+
+Tag friend.
+
+Upload.
+
+Open Feed.
+
+Play video.
+
+Scroll away.
+
+Verify playback stops appropriately.
+
+CREATE TEST
+
+Tap Create.
+
+See:
+
+Photo
+
+Video
+
+Make Event
+
+Test all three routes.
+
+MAP TEST
+
+Open Map.
+
+Scroll through available events.
+
+Verify last event remains visible above bottom navigation.
+
+Expand/collapse nearby event tray.
+
+SOCIAL TEST
+
+Like.
+
+Double tap.
+
+React.
+
+Comment.
+
+Verify timestamps.
+
+Message another user.
+
+EVENT TEST
+
+Create event.
+
+Pin location.
+
+Request access from second account.
+
+Approve.
+
+Verify protected location.
+
+AUTH TEST
+
+From Home:
+
+attempt iOS swipe-back gesture.
+
+It must NOT reveal login.
+
+NETWORK TEST
+
+Use Ethan/Fox/Eric on separate networks through Expo Tunnel.
+
+Verify:
+
+posts
+
+videos
+
+comments
+
+messages
+
+events
+
+likes
+
+all synchronize correctly.
+
+==================================================
+19. VISUAL TEST
+==================================================
+
+When opening V5.2, the difference from V5.1 should be immediately noticeable.
+
+It should feel:
+
+less empty
+
+less black
+
+more colorful
+
+more layered
+
+more social
+
+more fluid
+
+more polished
+
+more photographic
+
+more alive
+
+But NOT:
+
+over-designed
+
+neon
+
+childish
+
+gaming-themed
+
+corporate
+
+AI-template
+
+==================================================
+20. FINAL FEELING
+==================================================
+
+FOMO V5.2 should feel like:
+
+"Something is happening tonight and I want to know what it is."
+
+The interface should make university life feel ACTIVE.
+
+Events.
+
+People.
+
+Photos.
+
+Videos.
+
+Messages.
+
+Friends.
+
+Places.
+
+Activity.
+
+Keep the black/white lowercase FOMO identity.
+
+Then use:
+
+charcoal surfaces
+real photography
+tasteful violet accents
+category colors
+subtle gradients
+smooth movement
+
+to give the product personality.
+
+==================================================
+BUILD ORDER
+==================================================
+
+DO THIS IN ORDER:
+
+1. Preserve current stable V5.1.
+2. Fix Home tab sizing/alignment.
+3. Add Discover/Feed pager swiping.
+4. Add dynamic Feed image aspect ratios.
+5. Redesign Create sheet.
+6. Add video database/media support.
+7. Add video upload.
+8. Add video Feed playback.
+9. Fix Map bottom-sheet/list clipping.
+10. Replace overly-black color system.
+11. Introduce controlled accent/category colors.
+12. Polish Discover.
+13. Polish Feed.
+14. Polish navigation.
+15. Add animations/haptics.
+16. Test existing features for regressions.
+17. Run full V5.2 three-account test.
+
+DO NOT CALL V5.2 COMPLETE UNTIL EXISTING V5.1 FUNCTIONALITY STILL WORKS.
