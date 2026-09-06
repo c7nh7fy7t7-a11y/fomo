@@ -21,8 +21,4 @@ Rules:
 - Production releases always require human approval.
 
 Only configure AGENTS.md right now.
-<<<<<<< HEAD
 Do not modify FOMO application code.
-=======
-Do not modify FOMO application code.
->>>>>>> origin/main
