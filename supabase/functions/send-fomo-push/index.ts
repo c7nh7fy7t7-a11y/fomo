@@ -18,6 +18,9 @@ Deno.serve(async (req) => {
   const callerClient=createClient(url,anon,{global:{headers:{Authorization:authHeader}},auth:{persistSession:false}});
   const {data:{user},error:userError}=await callerClient.auth.getUser();
   if(userError||!user) return json({error:'unauthorized'},401);
+  const {data:activeProfile,error:profileError}=await callerClient.from('profiles').select('id')
+    .eq('id',user.id).eq('account_status','active').maybeSingle();
+  if(profileError||!activeProfile) return json({error:'account_inactive'},403);
 
   let input:Input;
   try{ input=await req.json(); }catch{ return json({error:'invalid_json'},400); }
