@@ -53,6 +53,24 @@ const privacyFromDb = (privacy: EventRow['privacy']): Privacy =>
 const privacyToDb = (privacy: Privacy) =>
   privacy === 'Public' ? 'public' : privacy === 'Request' ? 'request' : 'private';
 
+type EventCreateErrorCategory = 'authentication' | 'authorization' | 'conflict' | 'validation' | 'network' | 'server' | 'database' | 'unknown';
+
+const eventCreateErrorCategory = (error: unknown): EventCreateErrorCategory => {
+  const value = typeof error === 'object' && error !== null ? error as Record<string, unknown> : {};
+  const code = typeof value.code === 'string' ? value.code.toUpperCase() : '';
+  const message = typeof value.message === 'string' ? value.message.toLowerCase() : '';
+  const status = typeof value.status === 'number' ? value.status : 0;
+
+  if (status === 401 || code === 'PGRST301' || message.includes('auth') || message.includes('jwt') || message.includes('session')) return 'authentication';
+  if (status === 403 || code === '42501' || message.includes('row-level security') || message.includes('permission') || message.includes('forbidden')) return 'authorization';
+  if (status === 409 || code === '23505') return 'conflict';
+  if (status === 400 || code.startsWith('22') || code.startsWith('23') || message.includes('invalid') || message.includes('required')) return 'validation';
+  if (message.includes('network') || message.includes('failed to fetch') || message.includes('timeout')) return 'network';
+  if (status >= 500) return 'server';
+  if (code) return 'database';
+  return 'unknown';
+};
+
 export async function loadBackendState(userId: string): Promise<BackendState> {
   if (!supabase) throw new Error('Supabase is not configured.');
 
@@ -221,7 +239,7 @@ export async function createBackendEvent(userId: string, input: {
 
   const { data, error } = await supabase.rpc('create_fomo_event_v6', payload);
   if (error) {
-    console.error('[FOMO:create-event]', { userId, payload: { ...payload, p_precise_address: payload.p_precise_address ? '[protected]' : null }, error });
+    console.error('[FOMO:create-event]', { stage: 'event-rpc', category: eventCreateErrorCategory(error) });
     throw error;
   }
   if (!data) throw new Error('FOMO created the event but did not receive an event ID.');
@@ -232,8 +250,8 @@ export async function createBackendEvent(userId: string, input: {
       const coverUrl = await uploadPublicImage('event-covers', input.cover, userId);
       const update = await supabase.from('events').update({ cover_url: coverUrl, updated_at: new Date().toISOString() }).eq('id', eventId).eq('host_id', userId);
       if (update.error) throw update.error;
-    } catch (coverError: any) {
-      console.warn('[FOMO:event-cover]', { eventId, message: coverError?.message });
+    } catch (coverError: unknown) {
+      console.warn('[FOMO:event-cover]', { stage: 'cover-upload', category: eventCreateErrorCategory(coverError) });
     }
   }
   return eventId;
