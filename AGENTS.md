@@ -1,4 +1,4 @@
-Set up AGENTS.md for FOMO V6.3.
+FOMO V6.3 launch agent instructions.
 
 Current goal:
 Polish and stabilize the current FOMO build for launch.
@@ -19,6 +19,3 @@ Rules:
 - Keep every task small and narrowly scoped.
 - Test changes before declaring them complete.
 - Production releases always require human approval.
-
-Only configure AGENTS.md right now.
-Do not modify FOMO application code.
