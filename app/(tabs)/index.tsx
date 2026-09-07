@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Alert, Animated, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,10 +51,11 @@ export default function HomeScreen(){
   },[params.view,params.posted,width]);
   useEffect(()=>{
     if(!commentPostId||demoMode||!backendConfigured||!supabase)return;
-    const channel=supabase.channel(`feed-comments-${commentPostId}`)
+    const client=supabase;
+    const channel=client.channel(`feed-comments-${commentPostId}`)
       .on('postgres_changes',{event:'*',schema:'public',table:'feed_comments',filter:`post_id=eq.${commentPostId}`},()=>refreshFeed())
       .subscribe();
-    return()=>{supabase.removeChannel(channel);};
+    return()=>{client.removeChannel(channel);};
   },[commentPostId,demoMode,refreshFeed]);
 
   const visibleEvents=useMemo(()=>{
@@ -113,7 +114,12 @@ export default function HomeScreen(){
     <View style={styles.section}><View style={styles.sectionHead}><View><Text style={styles.sectionKicker}>EXPLORE</Text><Text style={styles.sectionTitle}>Around campus</Text></View><Text style={styles.sectionCount}>{rest.length}</Text></View>{rest.length?rest.map((event)=><EventCard key={event.id} compact event={event} people={people} friendIds={friendIds}/>):<View style={styles.empty}><View style={styles.emptyIcon}><Ionicons name="moon-outline" color={colors.accent2} size={22}/></View><Text style={styles.emptyTitle}>Quiet right now.</Text><Text style={styles.emptyBody}>Be the person who puts something on.</Text><Pressable onPress={()=>router.push('/(tabs)/create')} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Create something</Text><Ionicons name="arrow-forward" color={colors.white} size={14}/></Pressable></View>}</View>
   </ScrollView>;
 
-  const feedPage=<ScrollView
+  const feedHeader=<>
+    <View style={styles.feedTop}><View><Text style={styles.feedEyebrow}>CAMPUS FEED</Text><Text style={styles.feedTitle}>People are out.</Text><Text style={styles.feedSub}>Photos, videos and moments tied to real events.</Text></View></View>
+    <Pressable onPress={()=>setCreateKind('image')} style={({pressed})=>[styles.quickPost,pressed&&styles.pressed]}><Avatar person={currentUser} size={42}/><Text style={styles.quickPostText}>Share what’s happening…</Text><View style={styles.quickPostButton}><Ionicons name="camera" color={colors.white} size={17}/></View></Pressable>
+    <View style={styles.feedDivider}/>
+  </>;
+  const feedPage=<FlatList
     style={{width}}
     showsVerticalScrollIndicator={false}
     contentOffset={{x:0,y:savedFeedY}}
@@ -121,12 +127,17 @@ export default function HomeScreen(){
     contentContainerStyle={[styles.feed,{width}]}
     refreshControl={<RefreshControl refreshing={syncing} onRefresh={refreshFeed} tintColor={colors.accent2}/>}
     onScrollBeginDrag={()=>setVideoPauseToken((n)=>n+1)}
-  >
-    <View style={styles.feedTop}><View><Text style={styles.feedEyebrow}>CAMPUS FEED</Text><Text style={styles.feedTitle}>People are out.</Text><Text style={styles.feedSub}>Photos, videos and moments tied to real events.</Text></View></View>
-    <Pressable onPress={()=>setCreateKind('image')} style={({pressed})=>[styles.quickPost,pressed&&styles.pressed]}><Avatar person={currentUser} size={42}/><Text style={styles.quickPostText}>Share what’s happening…</Text><View style={styles.quickPostButton}><Ionicons name="camera" color={colors.white} size={17}/></View></Pressable>
-    <View style={styles.feedDivider}/>
-    {rankedPosts.length?rankedPosts.map((post)=><View key={post.id}><FeedPostCard post={post} people={people} events={events} currentUserId={currentUser.id} pauseToken={videoPauseToken} onReact={(reaction)=>onReaction(post,reaction)} onComments={()=>setCommentPostId(post.id)} onViewed={()=>markPostViewed(post.id)} onRemoveTag={()=>removeMyTag(post.id)} onDelete={()=>Alert.alert('Delete post?','This removes the post for everyone.',[{text:'Cancel',style:'cancel'},{text:'Delete',style:'destructive',onPress:()=>removePost(post.id)}])} onReport={()=>showReportSheet({type:'post',id:post.id},report)}/></View>):<View style={styles.feedEmpty}><View style={styles.emptyIcon}><Ionicons name="images-outline" color={colors.accent2} size={24}/></View><Text style={styles.emptyTitle}>Nothing here yet.</Text><Text style={styles.emptyBody}>Be the first to show what’s happening.</Text><Pressable onPress={()=>setCreateKind('image')} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Post something</Text><Ionicons name="arrow-forward" color={colors.white} size={14}/></Pressable></View>}{hasMoreFeed?<Pressable onPress={()=>loadMoreFeed()} style={styles.loadMore}><Text style={styles.loadMoreText}>Load more</Text><Ionicons name="chevron-down" color={colors.muted} size={14}/></Pressable>:null}
-  </ScrollView>;
+    data={rankedPosts}
+    keyExtractor={(post)=>post.id}
+    renderItem={({item:post})=><FeedPostCard post={post} people={people} events={events} currentUserId={currentUser.id} pauseToken={videoPauseToken} onReact={(reaction)=>onReaction(post,reaction)} onComments={()=>setCommentPostId(post.id)} onViewed={()=>markPostViewed(post.id)} onRemoveTag={()=>removeMyTag(post.id)} onDelete={()=>Alert.alert('Delete post?','This removes the post for everyone.',[{text:'Cancel',style:'cancel'},{text:'Delete',style:'destructive',onPress:()=>removePost(post.id)}])} onReport={()=>showReportSheet({type:'post',id:post.id},report)}/>}
+    ListHeaderComponent={feedHeader}
+    ListEmptyComponent={<View style={styles.feedEmpty}><View style={styles.emptyIcon}><Ionicons name="images-outline" color={colors.accent2} size={24}/></View><Text style={styles.emptyTitle}>Nothing here yet.</Text><Text style={styles.emptyBody}>Be the first to show what’s happening.</Text><Pressable onPress={()=>setCreateKind('image')} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Post something</Text><Ionicons name="arrow-forward" color={colors.white} size={14}/></Pressable></View>}
+    ListFooterComponent={hasMoreFeed?<Pressable onPress={()=>loadMoreFeed()} style={styles.loadMore}><Text style={styles.loadMoreText}>Load more</Text><Ionicons name="chevron-down" color={colors.muted} size={14}/></Pressable>:null}
+    initialNumToRender={2}
+    maxToRenderPerBatch={2}
+    windowSize={3}
+    removeClippedSubviews={false}
+  />;
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <View style={styles.header}><View style={styles.brandLine}><BrandWordmark width={80}/><View style={styles.liveBadge}><View style={styles.liveDot}/><Text style={styles.liveText}>LIVE</Text></View></View><View style={styles.headerActions}><Pressable onPress={()=>router.push('/search')} style={({pressed})=>[styles.headerButton,pressed&&styles.pressed]}><Ionicons name="search" color={colors.text} size={19}/></Pressable><Pressable onPress={()=>router.push('/notifications')} style={({pressed})=>[styles.headerButton,pressed&&styles.pressed]}><Ionicons name={unreadNotificationCount?'notifications':'notifications-outline'} color={colors.text} size={20}/>{unreadNotificationCount?<View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{Math.min(unreadNotificationCount,9)}{unreadNotificationCount>9?'+':''}</Text></View>:null}</Pressable><Pressable onPress={()=>router.push('/(tabs)/friends')} style={({pressed})=>[styles.headerButton,pressed&&styles.pressed]}><Ionicons name="people-outline" color={colors.text} size={20}/></Pressable><Pressable onPress={()=>router.push('/(tabs)/profile')}><Avatar person={currentUser} size={40}/></Pressable></View></View>
