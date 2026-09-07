@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
-import { Redirect, Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
@@ -20,15 +20,21 @@ function TabIcon({route,focused,color,size}:{route:string;focused:boolean;color:
 
 export default function TabLayout(){
   const {backendConfigured,demoMode,isAuthenticated,authLoading}=useApp();
-  if(authLoading)return <View style={styles.loading}><View style={styles.loadingBrand}/><Skeleton style={styles.loadingLine}/><Skeleton style={[styles.loadingLine,{width:112}]}/></View>;
-  if(backendConfigured&&!demoMode&&!isAuthenticated)return <Redirect href="/"/>;
+  const router=useRouter();
+  const shouldExitTabs=backendConfigured&&!demoMode&&!isAuthenticated&&!authLoading;
+
+  useEffect(()=>{
+    if(shouldExitTabs)router.replace('/');
+  },[router,shouldExitTabs]);
+
+  if(authLoading||shouldExitTabs)return <View style={styles.loading}><View style={styles.loadingBrand}/><Skeleton style={styles.loadingLine}/><Skeleton style={[styles.loadingLine,{width:112}]}/></View>;
   return <Tabs
     screenListeners={{tabPress:()=>{Haptics.selectionAsync().catch(()=>{});}}}
     screenOptions={({route})=>({
       headerShown:false,tabBarShowLabel:true,tabBarHideOnKeyboard:true,
       tabBarActiveTintColor:colors.text,tabBarInactiveTintColor:colors.subtle,
       tabBarStyle:styles.bar,tabBarItemStyle:styles.item,tabBarLabelStyle:styles.label,
-      tabBarBackground:()=> <BlurView tint="systemUltraThinMaterialDark" intensity={72} style={StyleSheet.absoluteFill}/>,
+      tabBarBackground:()=> <BlurView tint="systemUltraThinMaterialDark" intensity={72} style={[StyleSheet.absoluteFill,styles.barBackground]}/>,
       tabBarIcon:({color,size,focused})=><TabIcon route={route.name} focused={focused} color={color} size={size}/>,
     })}>
     <Tabs.Screen name="index" options={{title:'Home'}}/>
@@ -41,7 +47,8 @@ export default function TabLayout(){
 }
 const styles=StyleSheet.create({
   loading:{flex:1,backgroundColor:colors.bg,alignItems:'center',justifyContent:'center',gap:10},loadingBrand:{width:48,height:48,borderRadius:18,backgroundColor:colors.accentSoft,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,107,87,.22)'},loadingLine:{width:150,height:10,borderRadius:5},
-  bar:{position:'absolute',left:12,right:12,bottom:9,height:78,borderRadius:31,overflow:'hidden',backgroundColor:'rgba(15,18,21,.54)',borderTopWidth:0,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.13)',paddingTop:7,paddingBottom:8,elevation:14,shadowColor:'#000',shadowOpacity:.34,shadowRadius:22,shadowOffset:{width:0,height:10}},
+  bar:{position:'absolute',left:12,right:12,bottom:9,height:78,borderRadius:31,overflow:'visible',backgroundColor:'rgba(15,18,21,.54)',borderTopWidth:0,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.13)',paddingTop:7,paddingBottom:8,elevation:14,shadowColor:'#000',shadowOpacity:.34,shadowRadius:22,shadowOffset:{width:0,height:10}},
+  barBackground:{borderRadius:31,overflow:'hidden'},
   item:{paddingTop:0},label:{fontSize:9,fontWeight:'800',marginTop:1,letterSpacing:.1},
   iconWrap:{width:40,height:34,borderRadius:17,alignItems:'center',justifyContent:'center'},
   iconWrapActive:{backgroundColor:'rgba(255,255,255,.09)',borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.11)'},
