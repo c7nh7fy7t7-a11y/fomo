@@ -29,6 +29,13 @@ export default function HomeScreen(){
   const router=useRouter(); const params=useLocalSearchParams<{view?:string;posted?:string}>();
   const {width}=useWindowDimensions();
   const pagerRef=useRef<ScrollView>(null);
+  const feedListRef=useRef<FlatList<FeedPost>>(null);
+  const feedRestoreTargetRef=useRef(Math.max(0,savedFeedY));
+  const feedRestoreStartedRef=useRef(feedRestoreTargetRef.current===0);
+  const feedRestoreCompleteRef=useRef(feedRestoreTargetRef.current===0);
+  const feedViewportHeightRef=useRef(0);
+  const feedContentHeightRef=useRef(0);
+  const [feedRestoreMinHeight,setFeedRestoreMinHeight]=useState<number>();
   const scrollX=useRef(new Animated.Value(0)).current;
   const {
     currentUser,events,people,followingIds,friendIds,posts,interests,unreadNotificationCount,refreshAll,refreshFeed,syncing,syncError,demoMode,
@@ -78,6 +85,34 @@ export default function HomeScreen(){
     pagerRef.current?.scrollTo({x:next==='Discover'?0:width,animated:true});
   };
   const onReaction=async(post:FeedPost,reaction?:ReactionKind)=>{try{await reactToPost(post.id,reaction);}catch(error:any){Alert.alert('Couldn’t react',friendlyErrorMessage(error,'Try again.'));}};
+  const tryRestoreFeed=()=>{
+    const target=feedRestoreTargetRef.current;
+    const viewport=feedViewportHeightRef.current;
+    if(feedRestoreStartedRef.current||target<=0||viewport<=0||feedContentHeightRef.current<target+viewport)return;
+    feedRestoreStartedRef.current=true;
+    requestAnimationFrame(()=>feedListRef.current?.scrollToOffset({offset:target,animated:false}));
+  };
+  const onFeedLayout=(height:number)=>{
+    feedViewportHeightRef.current=height;
+    if(!feedRestoreCompleteRef.current)setFeedRestoreMinHeight(feedRestoreTargetRef.current+height);
+    tryRestoreFeed();
+  };
+  const onFeedContentSizeChange=(height:number)=>{
+    feedContentHeightRef.current=height;
+    if(feedRestoreCompleteRef.current&&height>feedRestoreTargetRef.current+feedViewportHeightRef.current)setFeedRestoreMinHeight(undefined);
+    tryRestoreFeed();
+  };
+  const onFeedScroll=(y:number)=>{
+    if(!feedRestoreCompleteRef.current){
+      if(feedRestoreStartedRef.current&&Math.abs(y-feedRestoreTargetRef.current)<=1){
+        feedRestoreCompleteRef.current=true;
+        savedFeedY=y;
+        if(feedContentHeightRef.current>feedRestoreTargetRef.current+feedViewportHeightRef.current)setFeedRestoreMinHeight(undefined);
+      }
+      return;
+    }
+    savedFeedY=y;
+  };
 
   const discoverPage=<ScrollView
     style={{width}}
@@ -120,11 +155,13 @@ export default function HomeScreen(){
     <View style={styles.feedDivider}/>
   </>;
   const feedPage=<FlatList
+    ref={feedListRef}
     style={{width}}
     showsVerticalScrollIndicator={false}
-    contentOffset={{x:0,y:savedFeedY}}
-    onScroll={(e)=>{savedFeedY=e.nativeEvent.contentOffset.y;}} scrollEventThrottle={32}
-    contentContainerStyle={[styles.feed,{width}]}
+    onLayout={(e)=>onFeedLayout(e.nativeEvent.layout.height)}
+    onContentSizeChange={(_,height)=>onFeedContentSizeChange(height)}
+    onScroll={(e)=>onFeedScroll(e.nativeEvent.contentOffset.y)} scrollEventThrottle={32}
+    contentContainerStyle={[styles.feed,{width},feedRestoreMinHeight?{minHeight:feedRestoreMinHeight}:null]}
     refreshControl={<RefreshControl refreshing={syncing} onRefresh={refreshFeed} tintColor={colors.accent2}/>}
     onScrollBeginDrag={()=>setVideoPauseToken((n)=>n+1)}
     data={rankedPosts}
