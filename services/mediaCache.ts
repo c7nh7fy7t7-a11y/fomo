@@ -2,7 +2,9 @@ import { supabase } from '@/lib/supabase';
 
 type CachedSignedUrl={url:string;validUntil:number};
 const signedUrlCache=new Map<string,CachedSignedUrl>();
-const REUSE_MS=50*60*1000;
+// Session cache can retain posts for another 45 minutes. Keeping ten minutes
+// here ensures a restored URL remains inside its one-hour signature lifetime.
+const REUSE_MS=10*60*1000;
 const SIGNED_SECONDS=60*60;
 
 const keyFor=(bucket:string,path:string)=>`${bucket}:${path}`;
