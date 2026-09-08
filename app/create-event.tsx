@@ -40,10 +40,10 @@ export default function CreateScreen(){
     if(!location.trim()){Alert.alert('Where is it?','Add a public location or area.');return;}
     setPublishing(true);
     try{
-      const event=await addEvent({title,category,eventDate:dateKey(eventDate),time,location,exactLocation:exactLocation||location,description,privacy,cover,latitude:pin.latitude,longitude:pin.longitude});
+      await addEvent({title,category,eventDate:dateKey(eventDate),time,location,exactLocation:exactLocation||location,description,privacy,cover,latitude:pin.latitude,longitude:pin.longitude});
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(()=>{});
       setTitle('');setCategory('Social');setEventDate(today);setTime('9:00 PM');setLocation('College Quarter');setExactLocation('');setDescription('');setPrivacy('Request');setCover(undefined);setPin(DEFAULT_PIN);
-      router.replace({pathname:'/(tabs)',params:{view:'feed',posted:event.id}} as any);
+      router.replace('/(tabs)');
     }catch(error:any){Alert.alert('Couldn’t post your event',friendlyErrorMessage(error,'Try again in a moment.'));}
     finally{setPublishing(false);}
   };

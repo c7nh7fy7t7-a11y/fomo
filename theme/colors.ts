@@ -2,14 +2,14 @@ import type { ColorValue } from 'react-native';
 
 /** FOMO V6.3 — Liquid Social palette. Coral is intentionally rare; content stays neutral. */
 export const colors = {
-  bg: '#0B0D0F',
-  bgDeep: '#070809',
-  surface: '#121518',
-  surface2: '#181C20',
-  surface3: '#20252A',
-  raised: '#282E34',
-  glass: 'rgba(18,21,24,.74)',
-  glassStrong: 'rgba(20,23,27,.90)',
+  bg: '#080B11',
+  bgDeep: '#05070B',
+  surface: '#11161E',
+  surface2: '#171D27',
+  surface3: '#202936',
+  raised: '#293442',
+  glass: 'rgba(14,19,27,.76)',
+  glassStrong: 'rgba(15,20,29,.91)',
   glassSoft: 'rgba(255,255,255,.055)',
   line: 'rgba(255,255,255,.085)',
   border: 'rgba(255,255,255,.085)',
