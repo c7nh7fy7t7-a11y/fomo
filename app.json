@@ -27,7 +27,11 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-video",
+      "expo-status-bar"
     ],
     "ios": {
       "supportsTablet": true,

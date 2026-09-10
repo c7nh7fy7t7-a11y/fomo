@@ -11,7 +11,7 @@ import { friendlyErrorMessage } from '@/utils/errors';
 function VideoPreview({ uri }: { uri: string }) {
   const player = useVideoPlayer(uri);
   useEffect(() => () => { try { player.pause(); } catch {} }, [player]);
-  return <VideoView player={player} style={StyleSheet.absoluteFillObject} contentFit="contain" nativeControls allowsFullscreen />;
+  return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls fullscreenOptions={{enable:true}} />;
 }
 
 type MediaDraft = {
@@ -102,7 +102,7 @@ export function CreatePostModal({ visible, initialKind='image', events, people, 
         </View>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Pressable onPress={draft?changeMedia:undefined} style={[styles.media,{aspectRatio:ratio}]}>
-            {draft?.mediaType==='video'?<VideoPreview uri={draft.uri}/>:draft?<Image source={{uri:draft.uri}} style={StyleSheet.absoluteFillObject} resizeMode="cover"/>:
+            {draft?.mediaType==='video'?<VideoPreview uri={draft.uri}/>:draft?<Image source={{uri:draft.uri}} style={StyleSheet.absoluteFill} resizeMode="cover"/>:
               <View style={styles.mediaEmpty}>
                 <Ionicons name={initialKind==='video'?'videocam-outline':'camera-outline'} color={colors.muted} size={38}/>
                 <Text style={styles.mediaText}>{initialKind==='video'?'Choose a video':'Share a moment'}</Text>

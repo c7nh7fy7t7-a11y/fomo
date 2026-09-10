@@ -75,7 +75,7 @@ export default function CreateScreen(){
             <TextInput value={location} onChangeText={setLocation} placeholder="Public area — College Quarter" placeholderTextColor={colors.subtle} style={styles.input}/>
             <TextInput value={exactLocation} onChangeText={setExactLocation} placeholder="Exact address / unit / room (optional label)" placeholderTextColor={colors.subtle} style={styles.input}/>
             <View style={styles.mapShell}>
-              <MapView style={StyleSheet.absoluteFillObject} initialRegion={{...pin,latitudeDelta:.012,longitudeDelta:.012}} onPress={movePin} userInterfaceStyle="dark">
+              <MapView style={StyleSheet.absoluteFill} initialRegion={{...pin,latitudeDelta:.012,longitudeDelta:.012}} onPress={movePin} userInterfaceStyle="dark">
                 <Marker coordinate={pin} draggable onDragEnd={(e)=>setPin(e.nativeEvent.coordinate)}><View style={styles.pin}><View style={styles.pinCore}/></View></Marker>
               </MapView>
               <View style={styles.mapHint}><Ionicons name="hand-left-outline" color={colors.white} size={14}/><Text style={styles.mapHintText}>Tap or drag the pin</Text></View>
@@ -92,7 +92,7 @@ export default function CreateScreen(){
 
           <Section label="GIVE PEOPLE THE VIBE">
             <Pressable onPress={pickCover} style={styles.cover}>
-              {cover?<Image source={{uri:cover}} style={StyleSheet.absoluteFillObject}/>:<><Ionicons name="image-outline" color={colors.muted} size={25}/><Text style={styles.coverText}>Add cover photo</Text></>}
+              {cover?<Image source={{uri:cover}} style={StyleSheet.absoluteFill}/>:<><Ionicons name="image-outline" color={colors.muted} size={25}/><Text style={styles.coverText}>Add cover photo</Text></>}
               {cover?<View style={styles.coverChange}><Text style={styles.coverChangeText}>Change</Text></View>:null}
             </Pressable>
             <TextInput value={description} onChangeText={setDescription} placeholder="What should people know?" placeholderTextColor={colors.subtle} multiline style={styles.description}/>
