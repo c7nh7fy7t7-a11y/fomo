@@ -29,7 +29,7 @@ export default function MapScreen(){
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <View style={styles.head}><View><Text style={styles.title}>Map</Text><Text style={styles.sub}>See where campus is moving.</Text></View><View style={styles.filters}>{(['All','Friends','Open'] as const).map((item)=><Pressable key={item} onPress={()=>{setFilter(item);Haptics.selectionAsync().catch(()=>{});}} style={[styles.filter,filter===item&&styles.filterActive]}><Text style={[styles.filterText,filter===item&&styles.filterTextActive]}>{item}</Text></Pressable>)}</View></View>
     <View style={[styles.mapWrap,{marginBottom:bottomNavClearance}]}>
-      <MapView style={StyleSheet.absoluteFillObject} initialRegion={{latitude:52.129,longitude:-106.633,latitudeDelta:.035,longitudeDelta:.035}} userInterfaceStyle="dark">
+      <MapView style={StyleSheet.absoluteFill} initialRegion={{latitude:52.129,longitude:-106.633,latitudeDelta:.035,longitudeDelta:.035}} userInterfaceStyle="dark">
         {visible.map((event)=>{const active=selected?.id===event.id;return <Marker key={event.id} coordinate={coord(event)} onPress={()=>{setSelected(event);setTray('partial');}}><View style={[styles.marker,active&&styles.markerActive,{borderColor:categoryColor(event.category),backgroundColor:active?categoryColor(event.category):colors.surface2}]}><Ionicons name={iconFor(event.category)} color={active?colors.white:categoryColor(event.category)} size={14}/></View></Marker>;})}
       </MapView>
       <View style={styles.legend}><View style={styles.legendDot}/><Text style={styles.legendText}>Protected events only reveal exact pins after access.</Text></View>

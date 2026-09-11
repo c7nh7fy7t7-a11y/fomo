@@ -86,7 +86,7 @@ export function FeaturedEvent({ event, people, friendIds }: { event: FomoEvent; 
   const friends = friendCandidates.filter((p) => friendIds.includes(p.id));
   return (
     <Pressable onPress={() => router.push(`/event/${event.id}`)} style={({ pressed }) => [styles.featured, pressed && styles.pressed]}>
-      {event.cover ? <Image source={{ uri: event.cover }} style={StyleSheet.absoluteFillObject} /> : <View style={[StyleSheet.absoluteFillObject, { backgroundColor: categorySoft(event.category) }]} />}
+      {event.cover ? <Image source={{ uri: event.cover }} style={StyleSheet.absoluteFill} /> : <View style={[StyleSheet.absoluteFill, { backgroundColor: categorySoft(event.category) }]} />}
       <View style={styles.featuredShade} />
       <View style={styles.featuredTop}>
         <BlurView intensity={48} tint="systemUltraThinMaterialDark" style={styles.featuredChip}><View style={[styles.featuredDot, { backgroundColor: categoryColor(event.category) }]} /><Text style={styles.featuredChipText}>{event.category}</Text></BlurView>
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   compactImageWrap: { width: 102, height: 102, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.surface2 },
   image: { width: '100%', height: '100%' },
   fallback: { alignItems: 'center', justifyContent: 'center' },
-  imageShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.12)' },
+  imageShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.12)' },
   timeBubble: { position: 'absolute', left: 11, bottom: 10, backgroundColor: 'rgba(5,5,5,0.78)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6 },
   timeText: { color: colors.white, fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
   compactTime: { position: 'absolute', left: 7, bottom: 7, backgroundColor: 'rgba(5,5,5,.78)', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 4 },
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   chevron: { marginLeft: 'auto' },
   compactArrow: { width: 24, alignItems: 'center' },
   featured: { height: 340, borderRadius: 30, overflow: 'hidden', marginBottom: 20, backgroundColor: colors.surface2, borderWidth: StyleSheet.hairlineWidth, borderColor: '#2B2B31' },
-  featuredShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.34)' },
+  featuredShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.34)' },
   featuredTop: { position: 'absolute', left: 14, right: 14, top: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   featuredChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(9,9,11,.78)', borderRadius: 17, paddingHorizontal: 10, paddingVertical: 7, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,.14)' },
   featuredDot: { width: 6, height: 6, borderRadius: 3 },
