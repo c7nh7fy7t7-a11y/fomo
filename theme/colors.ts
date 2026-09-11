@@ -1,6 +1,6 @@
 import type { ColorValue } from 'react-native';
 
-/** FOMO V6.3 — Liquid Social palette. Coral is intentionally rare; content stays neutral. */
+/** FOMO V6.3 — Liquid Social palette. Periwinkle is intentionally rare; content stays neutral. */
 export const colors = {
   bg: '#0B0D0F',
   bgDeep: '#070809',
@@ -18,11 +18,11 @@ export const colors = {
   ink: '#F6F3EF',
   muted: '#A6A9AD',
   subtle: '#6F757C',
-  accent: '#FF6B57',
-  accent2: '#FF7A66',
-  accentPressed: '#EF5947',
-  accentSoft: 'rgba(255,107,87,.13)',
-  accentGlow: 'rgba(255,107,87,.18)',
+  accent: '#6F7DFF',
+  accent2: '#8B96FF',
+  accentPressed: '#5968E8',
+  accentSoft: 'rgba(111,125,255,.14)',
+  accentGlow: 'rgba(111,125,255,.20)',
   success: '#78D7A7',
   warning: '#F2C068',
   danger: '#FF6678',
@@ -36,8 +36,8 @@ export const colors = {
   clubsSoft: '#251E33',
   campus: '#F2C46A',
   campusSoft: '#302718',
-  social: '#FF7A66',
-  socialSoft: '#34201D',
+  social: '#8B96FF',
+  socialSoft: '#202443',
 };
 
 export const categoryColor = (category: string): ColorValue => {

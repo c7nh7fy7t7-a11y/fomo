@@ -25,7 +25,7 @@ Use an actual iPhone for the tactile test. Also run the Android regression befor
 - Repeat a reaction. The reaction still works, but the particle fountain is removed and haptics are reduced.
 
 ## 4. Visual consistency
-Compare Login, Feed, Discover, Search, Event, Profile, Messages, Chat, Notifications and Create side-by-side. Confirm the same graphite surfaces, coral accent, corner language, verification mark and control hierarchy appear throughout.
+Compare Login, Feed, Discover, Search, Event, Profile, Messages, Chat, Notifications and Create side-by-side. Confirm the same graphite surfaces, periwinkle accent, corner language, verification mark and control hierarchy appear throughout.
 
 ## 5. Performance
 - Scroll a mixed Feed with portrait/landscape photos, video, long captions and comments.
