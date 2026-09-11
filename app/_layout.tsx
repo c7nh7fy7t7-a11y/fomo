@@ -52,6 +52,8 @@ export default function RootLayout() {
         <Stack.Screen name="search" options={{ presentation: 'card', gestureEnabled: true }} />
         <Stack.Screen name="notification-settings" options={{ presentation: 'card', gestureEnabled: true }} />
         <Stack.Screen name="blocked-users" options={{ presentation: 'card', gestureEnabled: true }} />
+        <Stack.Screen name="settings" options={{ presentation: 'card', gestureEnabled: true }} />
+        <Stack.Screen name="advanced-settings" options={{ presentation: 'card', gestureEnabled: true }} />
       </Stack>
     </AppProvider>
   );
