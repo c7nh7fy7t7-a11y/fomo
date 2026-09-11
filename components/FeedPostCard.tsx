@@ -206,7 +206,7 @@ export function FeedPostCard({
 }
 
 const reactionStyles=StyleSheet.create({
-  host:{width:42,height:42,position:'relative',zIndex:20},button:{width:42,height:42,borderRadius:17,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface2,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},buttonSelected:{backgroundColor:colors.accentSoft,borderColor:'rgba(255,107,87,.24)'},buttonEmoji:{fontSize:19},
+  host:{width:42,height:42,position:'relative',zIndex:20},button:{width:42,height:42,borderRadius:17,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface2,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},buttonSelected:{backgroundColor:colors.accentSoft,borderColor:'rgba(111,125,255,.24)'},buttonEmoji:{fontSize:19},
   trayWrap:{position:'absolute',left:-5,bottom:49,width:240,height:62,zIndex:40},tray:{flex:1,borderRadius:27,overflow:'hidden',paddingHorizontal:7,flexDirection:'row',alignItems:'center',borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.15)'},trayTint:{...StyleSheet.absoluteFill,backgroundColor:'rgba(13,15,18,.44)'},choice:{width:44,height:48,borderRadius:22,alignItems:'center',justifyContent:'center'},choiceActive:{backgroundColor:'rgba(255,255,255,.10)'},emoji:{fontSize:24},
   particleLayer:{position:'absolute',left:12,bottom:22,width:20,height:20,zIndex:60},particle:{position:'absolute',fontSize:17},
 });

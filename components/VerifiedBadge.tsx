@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Person, VerificationType } from '@/data/seed';
 import { colors } from '@/theme/colors';
 
-/** Small FOMO-specific verification seal: neutral shell + warm coral check. */
+/** Small FOMO-specific verification seal: neutral shell + cool periwinkle check. */
 export function VerifiedBadge({person,type,size=14}:{person?:Person;type?:VerificationType;size?:number}){
   const verification=type??person?.verificationType;
   if(!verification)return null;

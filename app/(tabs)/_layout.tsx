@@ -14,7 +14,7 @@ const activeIcons:Record<string,keyof typeof Ionicons.glyphMap>={index:'home',ma
 function TabIcon({route,focused,color,size}:{route:string;focused:boolean;color:ColorValue;size:number}){
   const scale=useRef(new Animated.Value(focused?1.06:1)).current;
   useEffect(()=>{Animated.spring(scale,{toValue:focused?1.07:1,useNativeDriver:true,friction:7,tension:220}).start();},[focused]);
-  if(route==='create') return <Animated.View style={[styles.create,{transform:[{scale}]}]}><View style={styles.createGlow}/><Ionicons name="add" color={colors.white} size={22}/></Animated.View>;
+  if(route==='create') return <Animated.View style={[styles.create,{transform:[{scale}]}]}><Ionicons name="add" color={focused?colors.text:color} size={focused?30:27}/></Animated.View>;
   return <Animated.View style={[styles.iconWrap,focused&&styles.iconWrapActive,{transform:[{scale}]}]}><Ionicons name={(focused?activeIcons[route]:inactiveIcons[route])??'ellipse-outline'} color={focused?colors.text:color} size={focused?size+1:size}/>{focused?<View style={styles.activeDot}/>:null}</Animated.View>;
 }
 
@@ -39,13 +39,12 @@ export default function TabLayout(){
   </Tabs>;
 }
 const styles=StyleSheet.create({
-  loading:{flex:1,backgroundColor:colors.bg,alignItems:'center',justifyContent:'center',gap:10},loadingBrand:{width:48,height:48,borderRadius:18,backgroundColor:colors.accentSoft,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,107,87,.22)'},loadingLine:{width:150,height:10,borderRadius:5},
-  bar:{position:'absolute',left:12,right:12,bottom:9,height:78,borderRadius:31,overflow:'hidden',backgroundColor:'rgba(15,18,21,.54)',borderTopWidth:0,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.13)',paddingTop:7,paddingBottom:8,elevation:14,shadowColor:'#000',shadowOpacity:.34,shadowRadius:22,shadowOffset:{width:0,height:10}},
-  barBackground:{borderRadius:31,overflow:'hidden'},
-  item:{paddingTop:0},label:{fontSize:9,fontWeight:'800',marginTop:1,letterSpacing:.1},
+  loading:{flex:1,backgroundColor:colors.bg,alignItems:'center',justifyContent:'center',gap:10},loadingBrand:{width:48,height:48,borderRadius:18,backgroundColor:colors.accentSoft,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(111,125,255,.22)'},loadingLine:{width:150,height:10,borderRadius:5},
+  bar:{position:'absolute',left:12,right:12,bottom:17,height:72,borderRadius:28,overflow:'hidden',backgroundColor:'rgba(15,18,21,.54)',borderTopWidth:0,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.13)',paddingTop:5,paddingBottom:6,elevation:14,shadowColor:'#000',shadowOpacity:.34,shadowRadius:22,shadowOffset:{width:0,height:10}},
+  barBackground:{borderRadius:28,overflow:'hidden'},
+  item:{paddingTop:0},label:{fontSize:9,fontWeight:'800',marginTop:0,letterSpacing:.1},
   iconWrap:{width:40,height:34,borderRadius:17,alignItems:'center',justifyContent:'center'},
   iconWrapActive:{backgroundColor:'rgba(255,255,255,.09)',borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.11)'},
   activeDot:{position:'absolute',bottom:2,width:4,height:4,borderRadius:2,backgroundColor:colors.accent2},
-  create:{width:40,height:40,borderRadius:16,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center',marginTop:0,borderWidth:1,borderColor:'rgba(255,255,255,.22)',shadowColor:colors.accent,shadowOpacity:.20,shadowRadius:8,shadowOffset:{width:0,height:3},overflow:'hidden'},
-  createGlow:{position:'absolute',left:6,right:6,top:1,height:1,backgroundColor:'rgba(255,255,255,.40)'},
+  create:{width:40,height:34,alignItems:'center',justifyContent:'center'},
 });
