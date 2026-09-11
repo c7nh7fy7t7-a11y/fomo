@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { useEvent } from 'expo';
@@ -16,10 +16,19 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 const REACTIONS:{kind:ReactionKind;emoji:string}[]=[
   {kind:'heart',emoji:'❤️'}, {kind:'fire',emoji:'🔥'}, {kind:'laugh',emoji:'😂'}, {kind:'wow',emoji:'😮'}, {kind:'clap',emoji:'👏'},
 ];
-const reactionEmoji=Object.fromEntries(REACTIONS.map(r=>[r.kind,r.emoji])) as Record<ReactionKind,string>;
 
 function formatDuration(ms?:number){
   if(!ms)return undefined; const total=Math.max(0,Math.round(ms/1000)); const m=Math.floor(total/60); const s=total%60; return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function reactionHapticStutter(){
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(()=>{});
+  setTimeout(()=>Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(()=>{}),65);
+  setTimeout(()=>Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(()=>{}),135);
+  setTimeout(()=>Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(()=>{}),215);
+  setTimeout(()=>Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(()=>{}),305);
+  setTimeout(()=>Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(()=>{}),405);
+  setTimeout(()=>Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(()=>{}),520);
 }
 
 function InlineVideo({uri,toggleToken,pauseToken}:{uri:string;toggleToken:number;pauseToken:number}){
@@ -34,109 +43,30 @@ function InlineVideo({uri,toggleToken,pauseToken}:{uri:string;toggleToken:number
   </>;
 }
 
-function reactionHapticBurst(){
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(()=>{});
-  setTimeout(()=>Haptics.selectionAsync().catch(()=>{}),65);
-  setTimeout(()=>Haptics.selectionAsync().catch(()=>{}),125);
-  setTimeout(()=>Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(()=>{}),205);
-}
-
-function ReactionGesture({mine,onReact}:{mine?:ReactionKind;onReact:(reaction?:ReactionKind)=>void}){
-  const reduceMotion=useReducedMotion();
-  const holdTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
-  const startX=useRef(0); const startY=useRef(0);
-  const activatedRef=useRef(false);
-  const hoverRef=useRef(0);
-  const [active,setActive]=useState(false);
-  const [hover,setHover]=useState(0);
-  const [burstEmoji,setBurstEmoji]=useState('❤️');
-  const tray=useRef(new Animated.Value(0)).current;
-  const press=useRef(new Animated.Value(1)).current;
-  const particles=useRef(Array.from({length:12},()=>new Animated.Value(0))).current;
-
-  useEffect(()=>()=>{if(holdTimer.current)clearTimeout(holdTimer.current);},[]);
-
-  const setHovered=(index:number)=>{
-    const clamped=Math.max(0,Math.min(REACTIONS.length-1,index));
-    if(clamped===hoverRef.current)return;
-    hoverRef.current=clamped; setHover(clamped);
-    Haptics.selectionAsync().catch(()=>{});
-  };
-  const open=()=>{
-    activatedRef.current=true;
-    const mineIndex=mine?REACTIONS.findIndex(r=>r.kind===mine):0;
-    const initial=mineIndex>=0?mineIndex:0; hoverRef.current=initial;setHover(initial);setActive(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(()=>{});
-    tray.setValue(0);Animated.spring(tray,{toValue:1,useNativeDriver:true,friction:7,tension:210}).start();
-  };
-  const runParticles=(emoji:string)=>{
-    if(reduceMotion)return;
-    setBurstEmoji(emoji);
-    particles.forEach((v)=>v.setValue(0));
-    Animated.parallel(particles.map((v,i)=>Animated.timing(v,{toValue:1,duration:650+(i%4)*70,delay:(i%3)*22,useNativeDriver:true}))).start();
-  };
-  const selectCurrent=()=>{
-    const choice=REACTIONS[hoverRef.current]??REACTIONS[0];
-    onReact(mine===choice.kind?undefined:choice.kind);
-    runParticles(choice.emoji); if(reduceMotion)Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(()=>{});else reactionHapticBurst();
-    Animated.timing(tray,{toValue:0,duration:110,useNativeDriver:true}).start(()=>setActive(false));
-  };
-  const onPressIn=(e:any)=>{
-    startX.current=e.nativeEvent.pageX; startY.current=e.nativeEvent.pageY;
-    Animated.spring(press,{toValue:.94,useNativeDriver:true,friction:8,tension:230}).start();
-    if(holdTimer.current)clearTimeout(holdTimer.current);
-    holdTimer.current=setTimeout(open,255);
-  };
-  const onPressOut=()=>{
-    if(holdTimer.current){clearTimeout(holdTimer.current);holdTimer.current=null;}
-    Animated.spring(press,{toValue:1,useNativeDriver:true,friction:7,tension:220}).start();
-    if(activatedRef.current){selectCurrent();setTimeout(()=>{activatedRef.current=false;},120);}
-  };
-  const onPress=()=>{
-    if(activatedRef.current){activatedRef.current=false;return;}
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(()=>{});
-    onReact(mine==='heart'?undefined:'heart');
-  };
-  const onMove=(e:any)=>{
-    const dx=e.nativeEvent.pageX-startX.current; const dy=e.nativeEvent.pageY-startY.current;
-    if(!active){if(Math.abs(dy)>11||Math.abs(dx)>15){if(holdTimer.current){clearTimeout(holdTimer.current);holdTimer.current=null;}}return;}
-    setHovered(Math.round(dx/46));
-  };
-
-  return <View style={reactionStyles.host}>
-    {active?<Animated.View pointerEvents="none" style={[reactionStyles.trayWrap,{opacity:tray,transform:[{translateY:tray.interpolate({inputRange:[0,1],outputRange:[7,0]})},{scale:tray.interpolate({inputRange:[0,1],outputRange:[.91,1]})}]}]}>
-      <BlurView intensity={72} tint="systemUltraThinMaterialDark" style={reactionStyles.tray}>
-        <View style={reactionStyles.trayTint}/>
-        {REACTIONS.map((r,i)=><Animated.View key={r.kind} style={[reactionStyles.choice,i===hover&&reactionStyles.choiceActive,{transform:[{translateY:i===hover?-7:0},{scale:i===hover?1.27:1}]}]}><Text style={reactionStyles.emoji}>{r.emoji}</Text></Animated.View>)}
-      </BlurView>
-    </Animated.View>:null}
-    <View pointerEvents="none" style={reactionStyles.particleLayer}>{particles.map((v,i)=>{
-      const angle=((i%6)-2.5)*18; const x=(i%2?1:-1)*(18+(i%5)*12);
-      return <Animated.Text key={i} style={[reactionStyles.particle,{opacity:v.interpolate({inputRange:[0,.72,1],outputRange:[0,1,0]}),transform:[{translateX:v.interpolate({inputRange:[0,1],outputRange:[0,x]})},{translateY:v.interpolate({inputRange:[0,1],outputRange:[0,-48-(i%4)*20]})},{scale:v.interpolate({inputRange:[0,.2,1],outputRange:[.45,1.12,.8]})},{rotate:v.interpolate({inputRange:[0,1],outputRange:['0deg',`${angle}deg`]})}]}]}>{burstEmoji}</Animated.Text>;
-    })}</View>
-    <Animated.View style={{transform:[{scale:press}]}}><Pressable accessibilityRole="button" accessibilityLabel="React to post. Hold and slide for more reactions." onPressIn={onPressIn} onPressOut={onPressOut} onPress={onPress} onTouchMove={onMove} pressRetentionOffset={{left:14,right:250,top:110,bottom:70}} style={[reactionStyles.button,mine&&reactionStyles.buttonSelected]}>
-      <Text style={reactionStyles.buttonEmoji}>{mine?reactionEmoji[mine]:'☺️'}</Text>
-    </Pressable></Animated.View>
-  </View>;
-}
-
 export function FeedPostCard({
-  post, people, events, currentUserId, pauseToken=0, onReact, onComments, onViewed, onRemoveTag, onDelete, onReport,
+  post, people, events, currentUserId, pauseToken=0, commentsExpanded=false, onReact, onToggleComments, onAddComment, onDeleteComment, onCommentInputFocus, onViewed, onRemoveTag, onDelete, onReport,
 }: {
   post: FeedPost; people: Person[]; events: FomoEvent[]; currentUserId: string; pauseToken?: number;
-  onReact: (reaction?: ReactionKind) => void; onComments: () => void; onViewed: () => void; onRemoveTag: () => void; onDelete: () => void; onReport?: () => void;
+  commentsExpanded?: boolean; onReact: (reaction?: ReactionKind) => void; onToggleComments: () => void;
+  onAddComment: (body:string) => Promise<void>; onDeleteComment: (commentId:string) => Promise<void>;
+  onCommentInputFocus?: (target:number) => void;
+  onViewed: () => void; onRemoveTag: () => void; onDelete: () => void; onReport?: () => void;
 }) {
   const router = useRouter();
   const {width}=useWindowDimensions();
+  const reduceMotion=useReducedMotion();
   const [imageAspect,setImageAspect]=useState<number|undefined>();
   const [videoToggleToken,setVideoToggleToken]=useState(0);
   const [mediaLoading,setMediaLoading]=useState(post.mediaType!=='video'&&Boolean(post.mediaUrl));
   const [mediaFailed,setMediaFailed]=useState(false);
+  const [commentBody,setCommentBody]=useState('');
+  const [commentSending,setCommentSending]=useState(false);
+  const commentInputRef=useRef<TextInput>(null);
   const lastMediaTap = useRef(0);
   const singleTapTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const heartBurst = useRef(new Animated.Value(0)).current;
-  const countPulse=useRef(new Animated.Value(1)).current;
-  const lastCount=useRef(post.reactions.length);
+  const rainParticles=useRef(Array.from({length:14},()=>new Animated.Value(0))).current;
+  const [rainEmoji,setRainEmoji]=useState('❤️');
   const author = people.find((p) => p.id === post.authorId);
   const event = events.find((e) => e.id === post.eventId);
   const tagged = post.taggedUserIds.map((id) => people.find((p) => p.id === id)).filter(Boolean) as Person[];
@@ -157,8 +87,7 @@ export function FeedPostCard({
 
   useEffect(() => { onViewed(); }, [post.id]);
   useEffect(()=>{setMediaFailed(false);setMediaLoading(post.mediaType!=='video'&&Boolean(post.mediaUrl));},[post.mediaUrl,post.mediaType]);
-  useEffect(()=>()=>{if(singleTapTimer.current)clearTimeout(singleTapTimer.current);},[]);
-  useEffect(()=>{if(lastCount.current===post.reactions.length)return;lastCount.current=post.reactions.length;countPulse.setValue(.82);Animated.spring(countPulse,{toValue:1,useNativeDriver:true,friction:5,tension:210}).start();},[post.reactions.length]);
+  useEffect(()=>()=>{if(singleTapTimer.current)clearTimeout(singleTapTimer.current);rainParticles.forEach((particle)=>particle.stopAnimation());},[]);
 
   const showHeartBurst = () => {
     heartBurst.stopAnimation(); heartBurst.setValue(0);
@@ -168,6 +97,16 @@ export function FeedPostCard({
     ]).start();
   };
   const doubleLike=()=>{if(mine!=='heart')onReact('heart');Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(()=>{});showHeartBurst();};
+  const rainReaction=(emoji:string)=>{
+    if(reduceMotion){Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(()=>{});return;}
+    setRainEmoji(emoji);
+    rainParticles.forEach((particle)=>{particle.stopAnimation();particle.setValue(0);});
+    Animated.parallel(rainParticles.map((particle,index)=>Animated.timing(particle,{toValue:1,duration:680+(index%4)*85,delay:(index%5)*34,useNativeDriver:true}))).start();
+    reactionHapticStutter();
+  };
+  const selectReaction=(reaction:ReactionKind,emoji:string)=>{const removing=mine===reaction;onReact(removing?undefined:reaction);if(removing)Haptics.selectionAsync().catch(()=>{});else rainReaction(emoji);};
+  const toggleComments=()=>{const opening=!commentsExpanded;onToggleComments();Haptics.selectionAsync().catch(()=>{});if(opening&&!post.comments.length)requestAnimationFrame(()=>requestAnimationFrame(()=>commentInputRef.current?.focus()));};
+  const submitComment=async()=>{const body=commentBody.trim();if(!body||commentSending)return;setCommentSending(true);try{await onAddComment(body);setCommentBody('');}catch{}finally{setCommentSending(false);}};
   const handleMediaPress=()=>{const now=Date.now(),gap=now-lastMediaTap.current;if(gap>=70&&gap<=285){if(singleTapTimer.current){clearTimeout(singleTapTimer.current);singleTapTimer.current=null;}lastMediaTap.current=0;doubleLike();return;}lastMediaTap.current=now;if(mediaType==='video'){if(singleTapTimer.current)clearTimeout(singleTapTimer.current);singleTapTimer.current=setTimeout(()=>{setVideoToggleToken(n=>n+1);lastMediaTap.current=0;},300);}};
   if (!author) return null;
 
@@ -191,27 +130,19 @@ export function FeedPostCard({
     </Pressable>
 
     <View style={styles.body}>
-      <View style={styles.actions}>
-        <ReactionGesture mine={mine} onReact={onReact}/>
-        <Pressable onPress={onComments} style={({pressed})=>[styles.actionButton,pressed&&styles.actionPressed]}><Ionicons name="chatbubble-ellipses-outline" color={colors.text} size={20}/></Pressable>
-        <View style={{flex:1}}/><Text style={styles.views}>{post.viewCount} {post.viewCount===1?'view':'views'}</Text>
-      </View>
-      {post.reactions.length?<Animated.View style={[styles.reactionSummary,{transform:[{scale:countPulse}]}]}><View style={styles.reactionFaces}>{REACTIONS.filter(({kind})=>reactionCounts[kind]).slice(0,3).map(({kind,emoji},i)=><View key={kind} style={[styles.reactionBubble,i>0&&styles.reactionOverlap]}><Text style={styles.reactionBubbleText}>{emoji}</Text></View>)}</View><Text style={styles.reactionTotal}>{post.reactions.length} {post.reactions.length===1?'reaction':'reactions'}</Text></Animated.View>:null}
       {post.caption?<Text style={styles.caption}><Text style={styles.captionName}>@{author.username}</Text>  {post.caption}</Text>:null}
-      {firstComment&&firstCommentAuthor?<Pressable onPress={onComments} style={styles.commentPreview}><Text style={styles.commentPreviewText} numberOfLines={1}><Text style={styles.commentPreviewName}>@{firstCommentAuthor.username}</Text>  {firstComment.body}</Text><Text style={styles.commentPreviewTime}>{timeAgo(firstComment.createdAt)}</Text></Pressable>:null}
-      <View style={styles.footerLine}>{post.comments.length?<Pressable onPress={onComments}><Text style={styles.comments}>{post.comments.length===1?'View comment':`View all ${post.comments.length} comments`}</Text></Pressable>:<Pressable onPress={onComments}><Text style={styles.comments}>Add a comment</Text></Pressable>}<Text style={styles.doubleTapHint}>Hold ☺️ to react</Text></View>
+      {!commentsExpanded&&firstComment&&firstCommentAuthor?<Pressable onPress={toggleComments} style={styles.commentPreview}><Text style={styles.commentPreviewText} numberOfLines={1}><Text style={styles.commentPreviewName}>@{firstCommentAuthor.username}</Text>  {firstComment.body}</Text><Text style={styles.commentPreviewTime}>{timeAgo(firstComment.createdAt)}</Text></Pressable>:null}
+      <View style={styles.footerLine}><Pressable accessibilityRole="button" accessibilityState={{expanded:commentsExpanded}} onPress={toggleComments} style={styles.commentToggle}><Text style={styles.comments}>{commentsExpanded?'Hide comments':post.comments.length===1?'View comment':post.comments.length?`View all ${post.comments.length} comments`:'Add a comment'}</Text><Ionicons name={commentsExpanded?'chevron-up':'chevron-down'} color={colors.muted} size={13}/></Pressable><Text style={styles.views}>{post.viewCount} {post.viewCount===1?'view':'views'}</Text></View>
+      {commentsExpanded?<View style={styles.commentsThread}>{post.comments.length?post.comments.map((comment)=>{const commentAuthor=people.find((person)=>person.id===comment.authorId);if(!commentAuthor)return null;return <View key={comment.id} style={styles.inlineComment}><Avatar person={commentAuthor} size={32}/><View style={styles.inlineCommentCopy}><View style={styles.inlineCommentMeta}><Text style={styles.inlineCommentName}>@{commentAuthor.username}</Text><VerifiedBadge person={commentAuthor} size={11}/><Text style={styles.inlineCommentTime}>{timeAgo(comment.createdAt)}</Text></View><Text style={styles.inlineCommentBody}>{comment.body}</Text></View>{comment.authorId===currentUserId?<Pressable accessibilityRole="button" accessibilityLabel="Delete comment" hitSlop={8} onPress={()=>onDeleteComment(comment.id).catch(()=>{})} style={({pressed})=>[styles.inlineDelete,pressed&&styles.actionPressed]}><Ionicons name="trash-outline" color={colors.subtle} size={14}/></Pressable>:null}</View>}):<Text style={styles.inlineEmpty}>Be the first to comment.</Text>}<View style={styles.inlineComposer}><TextInput ref={commentInputRef} value={commentBody} onChangeText={setCommentBody} onFocus={(event)=>onCommentInputFocus?.(event.nativeEvent.target)} editable={!commentSending} placeholder="Add a comment…" placeholderTextColor={colors.subtle} maxLength={600} returnKeyType="send" onSubmitEditing={submitComment} style={styles.inlineInput}/><Pressable accessibilityRole="button" accessibilityLabel="Send comment" disabled={!commentBody.trim()||commentSending} onPress={submitComment} style={({pressed})=>[styles.inlineSend,(!commentBody.trim()||commentSending)&&styles.inlineSendDisabled,pressed&&commentBody.trim()&&!commentSending?styles.actionPressed:null]}><Ionicons name="arrow-up" color={commentBody.trim()&&!commentSending?colors.white:colors.subtle} size={17}/></Pressable></View></View>:null}
+      <View pointerEvents="none" style={styles.reactionRain}>{rainParticles.map((particle,index)=><Animated.Text key={index} style={[styles.rainEmoji,{left:`${4+(index*19)%91}%`,opacity:particle.interpolate({inputRange:[0,.08,.82,1],outputRange:[0,1,1,0]}),transform:[{translateY:particle.interpolate({inputRange:[0,1],outputRange:[-175,12]})},{translateX:particle.interpolate({inputRange:[0,.5,1],outputRange:[0,index%2?8:-8,0]})},{rotate:particle.interpolate({inputRange:[0,1],outputRange:['0deg',`${index%2?180:-180}deg`]})},{scale:particle.interpolate({inputRange:[0,.15,1],outputRange:[.65,1,.9]})}]}]}>{rainEmoji}</Animated.Text>)}</View>
+      <View style={styles.reactionRow}>{REACTIONS.map(({kind,emoji})=>{const count=reactionCounts[kind]??0;const selected=mine===kind;return <Pressable key={kind} accessibilityRole="button" accessibilityLabel={`${kind} reaction${count?`, ${count}`:''}`} accessibilityState={{selected}} onPress={()=>selectReaction(kind,emoji)} style={({pressed})=>[styles.reactionOption,selected&&styles.reactionOptionSelected,pressed&&styles.actionPressed]}><Text style={styles.reactionOptionEmoji}>{emoji}</Text>{count?<Text style={[styles.reactionOptionCount,selected&&styles.reactionOptionCountSelected]}>{count}</Text>:null}</Pressable>;})}</View>
     </View>
     <View style={styles.divider}/>
   </View>;
 }
 
-const reactionStyles=StyleSheet.create({
-  host:{width:42,height:42,position:'relative',zIndex:20},button:{width:42,height:42,borderRadius:17,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface2,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},buttonSelected:{backgroundColor:colors.accentSoft,borderColor:'rgba(111,125,255,.24)'},buttonEmoji:{fontSize:19},
-  trayWrap:{position:'absolute',left:-5,bottom:49,width:240,height:62,zIndex:40},tray:{flex:1,borderRadius:27,overflow:'hidden',paddingHorizontal:7,flexDirection:'row',alignItems:'center',borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.15)'},trayTint:{...StyleSheet.absoluteFill,backgroundColor:'rgba(13,15,18,.44)'},choice:{width:44,height:48,borderRadius:22,alignItems:'center',justifyContent:'center'},choiceActive:{backgroundColor:'rgba(255,255,255,.10)'},emoji:{fontSize:24},
-  particleLayer:{position:'absolute',left:12,bottom:22,width:20,height:20,zIndex:60},particle:{position:'absolute',fontSize:17},
-});
 const styles=StyleSheet.create({
   post:{marginBottom:5},header:{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingTop:16,paddingBottom:11},avatarPressed:{transform:[{scale:.96}],opacity:.85},headerCopy:{flex:1,marginLeft:10,minWidth:0},nameLine:{flexDirection:'row',alignItems:'center'},authorTap:{flexDirection:'row',alignItems:'center',gap:5},name:{color:colors.text,fontSize:14.5,fontWeight:'800',letterSpacing:-.25},dot:{color:colors.subtle,fontSize:9,marginHorizontal:6},time:{color:colors.subtle,fontSize:10.5,fontWeight:'600'},contextLine:{marginTop:2,flexDirection:'row',alignItems:'center'},eventContext:{flexDirection:'row',alignItems:'center',gap:4,maxWidth:'95%'},context:{color:colors.muted,fontSize:10.5,fontWeight:'600'},tagLine:{flexDirection:'row',alignItems:'center',marginTop:2},tags:{color:colors.muted,fontSize:10},tagName:{color:colors.text,fontSize:10,fontWeight:'800'},more:{width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center'},untagButton:{paddingHorizontal:9,paddingVertical:7,borderRadius:13,backgroundColor:colors.surface2},untag:{color:colors.muted,fontSize:9,fontWeight:'800'},
   mediaWrap:{marginHorizontal:10,borderRadius:26,overflow:'hidden',backgroundColor:colors.surface2},mediaLoading:{backgroundColor:colors.surface2,alignItems:'center',justifyContent:'center'},loadingShimmer:{width:64,height:6,borderRadius:3,backgroundColor:colors.surface3},mediaMissingText:{color:colors.subtle,fontSize:9,marginTop:7,fontWeight:'700'},mediaMissing:{alignItems:'center',justifyContent:'center'},mediaEdge:{...StyleSheet.absoluteFill,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.11)',borderRadius:26},eventPill:{position:'absolute',left:12,bottom:12,maxWidth:'72%',paddingHorizontal:10,paddingVertical:7,borderRadius:16,overflow:'hidden',borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.14)',flexDirection:'row',alignItems:'center',gap:6},eventPillDot:{width:6,height:6,borderRadius:3,backgroundColor:colors.accent2},eventPillText:{color:colors.white,fontSize:9.5,fontWeight:'800'},duration:{position:'absolute',right:11,bottom:11,backgroundColor:'rgba(9,10,11,.76)',paddingHorizontal:7,paddingVertical:5,borderRadius:10},durationText:{color:colors.white,fontSize:9,fontWeight:'900'},playButton:{position:'absolute',left:'50%',top:'50%',marginLeft:-28,marginTop:-28,width:56,height:56,borderRadius:22,backgroundColor:'rgba(10,12,14,.70)',alignItems:'center',justifyContent:'center',paddingLeft:3,borderWidth:1,borderColor:'rgba(255,255,255,.22)'},heartBurst:{position:'absolute',left:'50%',top:'50%',marginLeft:-44,marginTop:-44},heartShadow:{textShadowColor:'rgba(0,0,0,.35)',textShadowRadius:16,textShadowOffset:{width:0,height:5}},
-  body:{paddingHorizontal:16,paddingTop:10},actions:{flexDirection:'row',alignItems:'center',gap:8,zIndex:10},actionButton:{width:42,height:42,borderRadius:17,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface2,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},actionPressed:{transform:[{scale:.94}],opacity:.78},views:{color:colors.subtle,fontSize:10.5,fontWeight:'700'},reactionSummary:{flexDirection:'row',alignItems:'center',marginTop:9,alignSelf:'flex-start'},reactionFaces:{flexDirection:'row',alignItems:'center'},reactionBubble:{width:23,height:23,borderRadius:11.5,backgroundColor:colors.surface3,alignItems:'center',justifyContent:'center',borderWidth:1.5,borderColor:colors.bg},reactionOverlap:{marginLeft:-5},reactionBubbleText:{fontSize:11.5},reactionTotal:{color:colors.muted,fontSize:10.5,fontWeight:'700',marginLeft:6},caption:{color:colors.text,fontSize:13.5,lineHeight:20.5,marginTop:10,letterSpacing:-.08},captionName:{fontWeight:'800'},commentPreview:{marginTop:8,flexDirection:'row',alignItems:'center',gap:8},commentPreviewText:{flex:1,color:colors.muted,fontSize:11.5,lineHeight:16},commentPreviewName:{color:colors.text,fontWeight:'800'},commentPreviewTime:{color:colors.subtle,fontSize:9.5,fontWeight:'600'},footerLine:{flexDirection:'row',alignItems:'center',marginTop:8},comments:{color:colors.muted,fontSize:11,fontWeight:'600'},doubleTapHint:{marginLeft:'auto',color:colors.subtle,fontSize:8.5,fontWeight:'600'},divider:{height:StyleSheet.hairlineWidth,backgroundColor:colors.line,marginHorizontal:16,marginTop:18},
+  body:{paddingHorizontal:16,paddingTop:10},actionPressed:{transform:[{scale:.94}],opacity:.78},views:{marginLeft:'auto',color:colors.subtle,fontSize:10.5,fontWeight:'700'},caption:{color:colors.text,fontSize:13.5,lineHeight:20.5,marginTop:2,letterSpacing:-.08},captionName:{fontWeight:'800'},commentPreview:{marginTop:8,flexDirection:'row',alignItems:'center',gap:8},commentPreviewText:{flex:1,color:colors.muted,fontSize:11.5,lineHeight:16},commentPreviewName:{color:colors.text,fontWeight:'800'},commentPreviewTime:{color:colors.subtle,fontSize:9.5,fontWeight:'600'},footerLine:{flexDirection:'row',alignItems:'center',marginTop:9},commentToggle:{minHeight:32,flexDirection:'row',alignItems:'center',gap:5,paddingRight:8},comments:{color:colors.muted,fontSize:11,fontWeight:'700'},commentsThread:{marginTop:8,paddingTop:14,borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:colors.line},inlineComment:{flexDirection:'row',alignItems:'flex-start',marginBottom:14},inlineCommentCopy:{flex:1,minWidth:0,marginLeft:9,paddingTop:1},inlineCommentMeta:{flexDirection:'row',alignItems:'center',gap:5},inlineCommentName:{color:colors.text,fontSize:11.5,fontWeight:'900'},inlineCommentTime:{color:colors.subtle,fontSize:9.5,fontWeight:'600'},inlineCommentBody:{color:colors.text,fontSize:12.5,lineHeight:18,marginTop:3},inlineDelete:{width:32,height:32,borderRadius:16,alignItems:'center',justifyContent:'center',marginLeft:4},inlineEmpty:{color:colors.muted,fontSize:11.5,textAlign:'center',paddingVertical:10},inlineComposer:{minHeight:46,borderRadius:23,backgroundColor:colors.surface2,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line,flexDirection:'row',alignItems:'center',paddingLeft:13,paddingRight:4,marginTop:2},inlineInput:{flex:1,minHeight:42,color:colors.text,fontSize:12.5,paddingVertical:9},inlineSend:{width:38,height:38,borderRadius:19,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center'},inlineSendDisabled:{backgroundColor:colors.surface3},reactionRain:{position:'absolute',left:0,right:0,bottom:44,height:190,zIndex:20},rainEmoji:{position:'absolute',bottom:0,fontSize:21,textShadowColor:'rgba(0,0,0,.28)',textShadowRadius:5},reactionRow:{height:48,flexDirection:'row',alignItems:'center',gap:6,marginTop:12},reactionOption:{flex:1,minWidth:44,height:44,borderRadius:17,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:4,backgroundColor:colors.surface2,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},reactionOptionSelected:{backgroundColor:colors.accentSoft,borderColor:'rgba(139,150,255,.42)'},reactionOptionEmoji:{fontSize:20},reactionOptionCount:{color:colors.muted,fontSize:9.5,fontWeight:'800'},reactionOptionCountSelected:{color:colors.text},divider:{height:StyleSheet.hairlineWidth,backgroundColor:colors.line,marginHorizontal:16,marginTop:14},
 });

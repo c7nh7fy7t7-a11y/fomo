@@ -11,24 +11,31 @@ Use an actual iPhone for the tactile test. Also run the Android regression befor
 
 ## 2. Signature reaction test
 1. Open Feed.
-2. Press and hold the small emoji reaction control.
-3. Confirm a glass tray opens after the intentional hold and a light haptic fires.
-4. Without lifting, slide right across ❤️ 🔥 😂 😮 👏.
-5. Confirm the hovered emoji rises/enlarges and selection haptics follow the finger.
-6. Release on 🔥.
-7. Confirm 🔥 saves once, a short matching emoji fountain appears, the count animates, and the haptic sequence ends quickly.
-8. Repeat while a video is playing.
-9. Aggressively scroll the Feed and confirm ordinary flicks never open the reaction tray.
+2. Confirm ❤️ 🔥 😂 😮 👏 are visible in a single row at the bottom of every post.
+3. Tap 🔥 and confirm it saves once, its button shows the selected state, its count updates, matching emoji rain falls briefly, and a short multi-pulse haptic fires.
+4. Tap 😂 and confirm it replaces 🔥 instead of adding a second reaction from the same user.
+5. Tap 😂 again and confirm it removes the reaction.
+6. Repeat while a video is playing and confirm playback stays responsive.
+7. Aggressively scroll the Feed and confirm the reaction row never interferes with natural vertical scrolling.
 
 ## 3. Reduced motion
 - Enable iOS Reduce Motion.
-- Repeat a reaction. The reaction still works, but the particle fountain is removed and haptics are reduced.
+- Repeat a reaction and confirm the one-tap row remains responsive, emoji rain is removed, and feedback becomes one light haptic.
 
 ## 4. Visual consistency
 Compare Login, Feed, Discover, Search, Event, Profile, Messages, Chat, Notifications and Create side-by-side. Confirm the same graphite surfaces, periwinkle accent, corner language, verification mark and control hierarchy appear throughout.
 
-## 5. Performance
+## 5. Inline comments
+- Tap "View comments" on a Feed post and confirm the thread expands directly beneath that post without opening a new screen or sheet.
+- Repeat from posts near the top, middle and bottom of Feed. Confirm every tap expands the correct thread.
+- Focus the inline field after scrolling deeply and confirm it moves above the keyboard so typed text and the send button remain visible.
+- Add a comment from the inline field and confirm it saves once and appears immediately.
+- Delete one of your comments and confirm other comments remain intact.
+- Tap "Hide comments" and confirm the post collapses cleanly without losing Feed position.
+- Repeat on a post detail screen and confirm the same inline behavior.
+
+## 6. Performance
 - Scroll a mixed Feed with portrait/landscape photos, video, long captions and comments.
-- Trigger reactions repeatedly and confirm particles disappear after each burst.
-- Confirm video remains responsive during reaction gestures.
+- Trigger each reaction repeatedly and confirm counts and selected states stay accurate and every emoji-rain burst disappears cleanly.
+- Confirm video remains responsive while reaction buttons are used.
 - Confirm no obvious memory or frame-rate degradation after repeated reactions.

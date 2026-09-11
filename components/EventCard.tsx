@@ -24,7 +24,7 @@ export function EventCard({ event, people, friendIds, compact = false }: { event
     return (
       <Pressable onPress={() => router.push(`/event/${event.id}`)} style={({ pressed }) => [styles.compactCard, pressed && styles.pressed]}>
         <View style={styles.compactImageWrap}>
-          {event.cover ? <Image source={{ uri: event.cover }} style={styles.image} /> : (
+          {event.cover ? <Image source={{ uri: event.cover }} style={styles.image} resizeMode="cover" /> : (
             <View style={[styles.image, styles.fallback, { backgroundColor: categorySoft(event.category) }]}>
               <Ionicons name={iconForCategory(event.category)} color={accent} size={25} />
             </View>
@@ -53,7 +53,7 @@ export function EventCard({ event, people, friendIds, compact = false }: { event
   return (
     <Pressable onPress={() => router.push(`/event/${event.id}`)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
       <View style={styles.imageWrap}>
-        {event.cover ? <Image source={{ uri: event.cover }} style={styles.image} /> : (
+        {event.cover ? <Image source={{ uri: event.cover }} style={styles.image} resizeMode="cover" /> : (
           <View style={[styles.image, styles.fallback, { backgroundColor: categorySoft(event.category) }]}>
             <Ionicons name={iconForCategory(event.category)} color={accent} size={28} />
           </View>
@@ -86,7 +86,7 @@ export function FeaturedEvent({ event, people, friendIds }: { event: FomoEvent; 
   const friends = friendCandidates.filter((p) => friendIds.includes(p.id));
   return (
     <Pressable onPress={() => router.push(`/event/${event.id}`)} style={({ pressed }) => [styles.featured, pressed && styles.pressed]}>
-      {event.cover ? <Image source={{ uri: event.cover }} style={StyleSheet.absoluteFill} /> : <View style={[StyleSheet.absoluteFill, { backgroundColor: categorySoft(event.category) }]} />}
+      {event.cover ? <Image source={{ uri: event.cover }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <View style={[StyleSheet.absoluteFill, { backgroundColor: categorySoft(event.category) }]} />}
       <View style={styles.featuredShade} />
       <View style={styles.featuredTop}>
         <BlurView intensity={48} tint="systemUltraThinMaterialDark" style={styles.featuredChip}><View style={[styles.featuredDot, { backgroundColor: categoryColor(event.category) }]} /><Text style={styles.featuredChipText}>{event.category}</Text></BlurView>
@@ -109,10 +109,10 @@ export function FeaturedEvent({ event, people, friendIds }: { event: FomoEvent; 
 
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: 26, overflow: 'hidden', marginBottom: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
-  compactCard: { minHeight: 118, flexDirection: 'row', alignItems: 'center', marginBottom: 10, padding: 7, borderRadius: 22, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  compactCard: { minHeight: 124, flexDirection: 'row', alignItems: 'center', marginBottom: 13, padding: 8, borderRadius: 22, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
   pressed: { opacity: 0.86, transform: [{ scale: 0.982 }] },
   imageWrap: { height: 166, backgroundColor: colors.surface2 },
-  compactImageWrap: { width: 102, height: 102, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.surface2 },
+  compactImageWrap: { width: 106, height: 106, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.surface2 },
   image: { width: '100%', height: '100%' },
   fallback: { alignItems: 'center', justifyContent: 'center' },
   imageShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.12)' },
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   socialText: { color: colors.muted, fontSize: 10, fontWeight: '700' },
   chevron: { marginLeft: 'auto' },
   compactArrow: { width: 24, alignItems: 'center' },
-  featured: { height: 340, borderRadius: 30, overflow: 'hidden', marginBottom: 20, backgroundColor: colors.surface2, borderWidth: StyleSheet.hairlineWidth, borderColor: '#2B2B31' },
+  featured: { height: 262, borderRadius: 26, overflow: 'hidden', marginBottom: 2, backgroundColor: colors.surface2, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
   featuredShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.34)' },
   featuredTop: { position: 'absolute', left: 14, right: 14, top: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   featuredChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(9,9,11,.78)', borderRadius: 17, paddingHorizontal: 10, paddingVertical: 7, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,.14)' },
@@ -146,9 +146,9 @@ const styles = StyleSheet.create({
   featuredMetaPill: { backgroundColor: 'rgba(9,9,11,.72)', borderRadius: 15, paddingHorizontal: 9, paddingVertical: 6 },
   featuredMeta: { color: colors.white, fontSize: 9.5, fontWeight: '800', textShadowColor: '#000', textShadowRadius: 8 },
   featuredBottom: { position: 'absolute', left: 18, right: 18, bottom: 17 },
-  featuredTitle: { color: colors.white, fontSize: 31, lineHeight: 33, fontWeight: '900', letterSpacing: -1.1 },
-  featuredLocation: { color: '#EEEEF0', fontSize: 11.5, fontWeight: '700', marginTop: 8 },
-  featuredSocial: { flexDirection: 'row', alignItems: 'center', marginTop: 13 },
+  featuredTitle: { color: colors.white, fontSize: 25, lineHeight: 27, fontWeight: '900', letterSpacing: -.8 },
+  featuredLocation: { color: '#EEEEF0', fontSize: 10.5, fontWeight: '700', marginTop: 6 },
+  featuredSocial: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
   featuredSocialText: { color: colors.white, fontSize: 10.5, fontWeight: '700' },
   viewEvent: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.white, borderRadius: 15, paddingHorizontal: 10, paddingVertical: 7 },
   viewEventText: { color: colors.black, fontSize: 9, fontWeight: '900' },
