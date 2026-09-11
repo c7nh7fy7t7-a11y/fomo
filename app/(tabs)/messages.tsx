@@ -11,70 +11,197 @@ import { colors } from '@/theme/colors';
 import { friendlyErrorMessage } from '@/utils/errors';
 import { timeAgo } from '@/utils/time';
 
-export default function MessagesScreen(){
-  const router=useRouter();
-  const {conversations,people,currentUser,friendIds,openChatWith,refreshConversations}=useApp();
-  const [newOpen,setNewOpen]=useState(false);
-  const [query,setQuery]=useState('');
-  const [newQuery,setNewQuery]=useState('');
+export default function MessagesScreen() {
+  const router = useRouter();
+  const { conversations, people, currentUser, friendIds, openChatWith, refreshConversations } = useApp();
+  const [newOpen, setNewOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [newQuery, setNewQuery] = useState('');
 
-  const filteredConversations=useMemo(()=>{
-    const q=query.trim().toLowerCase();
-    if(!q)return conversations;
-    return conversations.filter((conversation)=>{
-      const peer=people.find((p)=>p.id===conversation.peerId);
-      return peer?.name.toLowerCase().includes(q)||peer?.username.toLowerCase().includes(q)||(conversation.lastMessage??'').toLowerCase().includes(q);
+  const filteredConversations = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return conversations;
+    return conversations.filter((conversation) => {
+      const peer = people.find((person) => person.id === conversation.peerId);
+      return peer?.name.toLowerCase().includes(normalized)
+        || peer?.username.toLowerCase().includes(normalized)
+        || (conversation.lastMessage ?? '').toLowerCase().includes(normalized);
     });
-  },[conversations,people,query]);
+  }, [conversations, people, query]);
 
-  const candidates=useMemo(()=>{
-    const q=newQuery.trim().toLowerCase();
-    return people.filter((p)=>p.id!==currentUser.id)
-      .filter((p)=>!q||p.name.toLowerCase().includes(q)||p.username.toLowerCase().includes(q))
-      .sort((a,b)=>Number(friendIds.includes(b.id))-Number(friendIds.includes(a.id))||a.name.localeCompare(b.name));
-  },[people,currentUser.id,friendIds,newQuery]);
+  const candidates = useMemo(() => {
+    const normalized = newQuery.trim().toLowerCase();
+    return people
+      .filter((person) => person.id !== currentUser.id)
+      .filter((person) => !normalized || person.name.toLowerCase().includes(normalized) || person.username.toLowerCase().includes(normalized))
+      .sort((a, b) => Number(friendIds.includes(b.id)) - Number(friendIds.includes(a.id)) || a.name.localeCompare(b.name));
+  }, [people, currentUser.id, friendIds, newQuery]);
 
-  const open=async(peerId:string)=>{
-    try{const id=await openChatWith(peerId);setNewOpen(false);setNewQuery('');router.push(`/chat/${id}?peer=${peerId}`);}
-    catch(error:any){Alert.alert('Couldn’t open chat',friendlyErrorMessage(error,'Try again.'));}
+  const open = async (peerId: string) => {
+    try {
+      const conversationId = await openChatWith(peerId);
+      setNewOpen(false);
+      setNewQuery('');
+      router.push(`/chat/${conversationId}?peer=${peerId}`);
+    } catch (error: any) {
+      Alert.alert('Couldn’t open chat', friendlyErrorMessage(error, 'Try again.'));
+    }
   };
 
-  return(
+  return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.head}>
-        <View><Text style={styles.kicker}>PRIVATE</Text><Text style={styles.title}>Messages</Text><Text style={styles.sub}>One-to-one conversations.</Text></View>
-        <Pressable onPress={()=>setNewOpen(true)} style={({pressed})=>[styles.new,pressed&&styles.pressed]}><Ionicons name="create-outline" color={colors.white} size={20}/></Pressable>
+      <View style={styles.header}>
+        <View style={styles.headerCopy}>
+          <View style={styles.eyebrowRow}>
+            <View style={styles.privateDot} />
+            <Text style={styles.kicker}>PRIVATE INBOX</Text>
+          </View>
+          <Text style={styles.title}>Messages</Text>
+          <Text style={styles.sub}>{conversations.length} {conversations.length === 1 ? 'conversation' : 'conversations'} on campus</Text>
+        </View>
+        <Pressable
+          onPress={() => setNewOpen(true)}
+          style={({ pressed }) => [styles.newMessage, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Start a new message"
+        >
+          <Ionicons name="create-outline" color={colors.white} size={22} />
+        </Pressable>
       </View>
 
       <GlassSurface style={styles.searchWrap} intensity={56}>
-        <Ionicons name="search-outline" color={colors.subtle} size={17}/>
-        <TextInput value={query} onChangeText={setQuery} placeholder="Search messages" placeholderTextColor={colors.subtle} style={styles.searchInput}/>
-        {query?<Pressable onPress={()=>setQuery('')} hitSlop={10}><Ionicons name="close-circle" color={colors.subtle} size={17}/></Pressable>:null}
+        <Ionicons name="search-outline" color={colors.muted} size={19} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search conversations"
+          placeholderTextColor={colors.subtle}
+          style={styles.searchInput}
+          returnKeyType="search"
+          accessibilityLabel="Search conversations"
+        />
+        {query ? (
+          <Pressable onPress={() => setQuery('')} style={styles.clearSearch} accessibilityRole="button" accessibilityLabel="Clear search">
+            <Ionicons name="close-circle" color={colors.muted} size={19} />
+          </Pressable>
+        ) : null}
       </GlassSurface>
 
-      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false} onScrollEndDrag={refreshConversations}>
-        {filteredConversations.length?filteredConversations.map((conversation)=>{
-          const peer=people.find((p)=>p.id===conversation.peerId); if(!peer)return null;
-          return <Pressable key={conversation.id} onPress={()=>router.push(`/chat/${conversation.id}?peer=${peer.id}`)} style={({pressed})=>[styles.row,pressed&&styles.rowPressed]}>
-            <View style={styles.avatarWrap}><Avatar person={peer} size={53}/><View style={styles.onlineDot}/></View>
-            <View style={styles.copy}>
-              <View style={styles.nameLine}><View style={styles.nameInline}><Text style={styles.name}>{peer.name}</Text><VerifiedBadge person={peer} size={12}/></View><Text style={styles.time}>{conversation.lastMessageAt?timeAgo(conversation.lastMessageAt):''}</Text></View>
-              <Text style={styles.preview} numberOfLines={1}>{conversation.lastMessage??'Start the conversation.'}</Text>
+      <ScrollView
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onScrollEndDrag={refreshConversations}
+      >
+        {filteredConversations.length ? (
+          <>
+            <View style={styles.listHeader}>
+              <Text style={styles.listLabel}>{query ? 'RESULTS' : 'RECENT'}</Text>
+              <Text style={styles.listCount}>{filteredConversations.length}</Text>
             </View>
-            <Ionicons name="chevron-forward" color="#4F4F58" size={15}/>
-          </Pressable>;
-        }):<View style={styles.empty}><View style={styles.emptyIcon}><Ionicons name="chatbubbles-outline" color={colors.muted} size={26}/></View><Text style={styles.emptyTitle}>{query?'No matches.':'No messages yet.'}</Text><Text style={styles.emptyBody}>{query?'Try another name or message.':'Message a friend from their profile or start one here.'}</Text>{!query?<Pressable onPress={()=>setNewOpen(true)} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Start a message</Text><Ionicons name="arrow-forward" color={colors.black} size={14}/></Pressable>:null}</View>}
+            {filteredConversations.map((conversation) => {
+              const peer = people.find((person) => person.id === conversation.peerId);
+              if (!peer) return null;
+              return (
+                <Pressable
+                  key={conversation.id}
+                  onPress={() => router.push(`/chat/${conversation.id}?peer=${peer.id}`)}
+                  style={({ pressed }) => [styles.conversation, pressed && styles.conversationPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open conversation with ${peer.name}`}
+                >
+                  <View style={styles.avatarFrame}><Avatar person={peer} size={58} /></View>
+                  <View style={styles.conversationCopy}>
+                    <View style={styles.nameLine}>
+                      <View style={styles.nameInline}>
+                        <Text style={styles.name} numberOfLines={1}>{peer.name}</Text>
+                        <VerifiedBadge person={peer} size={14} />
+                      </View>
+                      <Text style={styles.time}>{conversation.lastMessageAt ? timeAgo(conversation.lastMessageAt) : ''}</Text>
+                    </View>
+                    <Text style={[styles.preview, !conversation.lastMessage && styles.previewEmpty]} numberOfLines={2}>
+                      {conversation.lastMessage ?? `Start a conversation with ${peer.name.split(' ')[0]}.`}
+                    </Text>
+                  </View>
+                  <View style={styles.openIcon}><Ionicons name="chevron-forward" color={colors.muted} size={17} /></View>
+                </Pressable>
+              );
+            })}
+          </>
+        ) : (
+          <View style={styles.empty}>
+            <View style={styles.emptyGlow} />
+            <View style={styles.emptyIcon}><Ionicons name={query ? 'search-outline' : 'chatbubbles-outline'} color={colors.accent2} size={30} /></View>
+            <Text style={styles.emptyTitle}>{query ? 'No conversations found' : 'Your inbox is ready'}</Text>
+            <Text style={styles.emptyBody}>
+              {query ? 'Try a different name, username, or message.' : 'Start a private conversation with someone on campus.'}
+            </Text>
+            {!query ? (
+              <Pressable onPress={() => setNewOpen(true)} style={({ pressed }) => [styles.emptyButton, pressed && styles.pressed]} accessibilityRole="button">
+                <Ionicons name="create-outline" color={colors.white} size={17} />
+                <Text style={styles.emptyButtonText}>New message</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        )}
       </ScrollView>
 
-      <Modal visible={newOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={()=>setNewOpen(false)}>
-        <SafeAreaView style={styles.modalSafe}>
-          <View style={styles.sheetHandle}/>
-          <View style={styles.modalHead}><View><Text style={styles.modalTitle}>New message</Text><Text style={styles.modalSub}>Pick someone on campus.</Text></View><Pressable onPress={()=>setNewOpen(false)} style={styles.close}><Ionicons name="close" color={colors.text} size={20}/></Pressable></View>
-          <GlassSurface style={[styles.searchWrap,styles.modalSearch]} intensity={56}><Ionicons name="search-outline" color={colors.subtle} size={17}/><TextInput value={newQuery} onChangeText={setNewQuery} placeholder="Search people" placeholderTextColor={colors.subtle} style={styles.searchInput}/></GlassSurface>
-          <ScrollView contentContainerStyle={styles.modalList} showsVerticalScrollIndicator={false}>
-            {candidates.map((person)=><Pressable key={person.id} onPress={()=>open(person.id)} style={({pressed})=>[styles.person,pressed&&styles.rowPressed]}>
-              <Avatar person={person} size={47}/><View style={{flex:1,marginLeft:11}}><View style={styles.personNameLine}><Text style={styles.name}>{person.name}</Text>{friendIds.includes(person.id)?<View style={styles.friendPill}><Text style={styles.friendPillText}>FRIEND</Text></View>:null}</View><Text style={styles.preview}>@{person.username}</Text></View><Ionicons name="arrow-forward" color={colors.subtle} size={16}/>
-            </Pressable>)}
+      <Modal visible={newOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setNewOpen(false)}>
+        <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.modalHeader}>
+            <View style={styles.modalTitleCopy}>
+              <Text style={styles.modalKicker}>START A CONVERSATION</Text>
+              <Text style={styles.modalTitle}>New message</Text>
+              <Text style={styles.modalSub}>Pick someone on campus.</Text>
+            </View>
+            <Pressable onPress={() => setNewOpen(false)} style={styles.close} accessibilityRole="button" accessibilityLabel="Close">
+              <Ionicons name="close" color={colors.text} size={21} />
+            </Pressable>
+          </View>
+          <GlassSurface style={[styles.searchWrap, styles.modalSearch]} intensity={56}>
+            <Ionicons name="search-outline" color={colors.muted} size={19} />
+            <TextInput
+              value={newQuery}
+              onChangeText={setNewQuery}
+              placeholder="Search people"
+              placeholderTextColor={colors.subtle}
+              style={styles.searchInput}
+              returnKeyType="search"
+              autoFocus
+            />
+            {newQuery ? (
+              <Pressable onPress={() => setNewQuery('')} style={styles.clearSearch} accessibilityRole="button" accessibilityLabel="Clear search">
+                <Ionicons name="close-circle" color={colors.muted} size={19} />
+              </Pressable>
+            ) : null}
+          </GlassSurface>
+          <ScrollView contentContainerStyle={styles.modalList} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={styles.listHeader}>
+              <Text style={styles.listLabel}>{newQuery ? 'RESULTS' : 'PEOPLE'}</Text>
+              <Text style={styles.listCount}>{candidates.length}</Text>
+            </View>
+            {candidates.map((person) => (
+              <Pressable
+                key={person.id}
+                onPress={() => open(person.id)}
+                style={({ pressed }) => [styles.person, pressed && styles.conversationPressed]}
+                accessibilityRole="button"
+                accessibilityLabel={`Message ${person.name}`}
+              >
+                <Avatar person={person} size={52} />
+                <View style={styles.personCopy}>
+                  <View style={styles.personNameLine}>
+                    <Text style={styles.personName} numberOfLines={1}>{person.name}</Text>
+                    <VerifiedBadge person={person} size={13} />
+                    {friendIds.includes(person.id) ? <View style={styles.friendPill}><Text style={styles.friendPillText}>FRIEND</Text></View> : null}
+                  </View>
+                  <Text style={styles.personUser} numberOfLines={1}>@{person.username}</Text>
+                </View>
+                <View style={styles.personAction}><Ionicons name="arrow-forward" color={colors.accent2} size={17} /></View>
+              </Pressable>
+            ))}
+            {!candidates.length ? <Text style={styles.noPeople}>No people match that search.</Text> : null}
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -82,11 +209,59 @@ export default function MessagesScreen(){
   );
 }
 
-const styles=StyleSheet.create({
-  safe:{flex:1,backgroundColor:colors.bg},head:{paddingHorizontal:16,paddingTop:16,paddingBottom:13,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},kicker:{color:colors.subtle,fontSize:8,fontWeight:'900',letterSpacing:1.2},title:{color:colors.text,fontSize:31,fontWeight:'900',letterSpacing:-1,marginTop:2},sub:{color:colors.muted,fontSize:11,marginTop:2},
-  new:{width:43,height:43,borderRadius:17,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center'},pressed:{opacity:.75,transform:[{scale:.97}]},
-  searchWrap:{height:46,marginHorizontal:16,borderRadius:20,flexDirection:'row',alignItems:'center',paddingHorizontal:14,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},searchInput:{flex:1,color:colors.text,fontSize:12.5,marginLeft:8,paddingVertical:0},
-  list:{paddingHorizontal:12,paddingTop:12,paddingBottom:120},row:{minHeight:78,flexDirection:'row',alignItems:'center',paddingHorizontal:9,paddingVertical:8,borderRadius:21,marginBottom:4},rowPressed:{backgroundColor:colors.surface2},avatarWrap:{position:'relative'},onlineDot:{position:'absolute',right:0,bottom:1,width:11,height:11,borderRadius:6,backgroundColor:colors.success,borderWidth:2,borderColor:colors.bg},copy:{flex:1,marginLeft:12,marginRight:8},nameLine:{flexDirection:'row',alignItems:'center'},nameInline:{flexDirection:'row',alignItems:'center',gap:4},name:{color:colors.text,fontSize:13.5,fontWeight:'900'},time:{marginLeft:'auto',color:colors.subtle,fontSize:9.5,fontWeight:'700'},preview:{color:colors.muted,fontSize:11.5,marginTop:4},
-  empty:{alignItems:'center',paddingTop:96,paddingHorizontal:32},emptyIcon:{width:54,height:54,borderRadius:27,backgroundColor:colors.surface2,alignItems:'center',justifyContent:'center',marginBottom:13},emptyTitle:{color:colors.text,fontSize:18,fontWeight:'900'},emptyBody:{color:colors.muted,fontSize:11.5,lineHeight:17,textAlign:'center',marginTop:5},emptyButton:{height:38,borderRadius:19,backgroundColor:colors.accent,paddingHorizontal:13,flexDirection:'row',alignItems:'center',gap:7,marginTop:14},emptyButtonText:{color:colors.white,fontSize:10,fontWeight:'900'},
-  modalSafe:{flex:1,backgroundColor:colors.bg},sheetHandle:{width:42,height:4,borderRadius:2,backgroundColor:colors.line,alignSelf:'center',marginTop:8},modalHead:{minHeight:70,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},modalTitle:{color:colors.text,fontSize:21,fontWeight:'900',letterSpacing:-.4},modalSub:{color:colors.muted,fontSize:10.5,marginTop:2},close:{width:36,height:36,borderRadius:18,backgroundColor:colors.surface2,alignItems:'center',justifyContent:'center'},modalSearch:{marginTop:3,marginBottom:10},modalList:{paddingHorizontal:12,paddingBottom:30},person:{minHeight:68,flexDirection:'row',alignItems:'center',paddingHorizontal:8,borderRadius:19},personNameLine:{flexDirection:'row',alignItems:'center',gap:7},friendPill:{paddingHorizontal:6,paddingVertical:3,borderRadius:7,backgroundColor:colors.surface3},friendPillText:{color:colors.muted,fontSize:7,fontWeight:'900',letterSpacing:.5},
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
+  header: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerCopy: { flex: 1, minWidth: 0 },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  privateDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent2 },
+  kicker: { color: colors.accent2, fontSize: 9.5, fontWeight: '900', letterSpacing: 1.15 },
+  title: { color: colors.text, fontSize: 34, lineHeight: 38, fontWeight: '900', letterSpacing: -1.2, marginTop: 3 },
+  sub: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 3 },
+  newMessage: { width: 48, height: 48, borderRadius: 20, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,.20)', shadowColor: colors.accent, shadowOpacity: .18, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
+  pressed: { opacity: .75, transform: [{ scale: .97 }] },
+  searchWrap: { height: 50, marginHorizontal: 16, borderRadius: 21, flexDirection: 'row', alignItems: 'center', paddingLeft: 14, paddingRight: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  searchInput: { flex: 1, color: colors.text, fontSize: 13.5, marginLeft: 9, paddingVertical: 0 },
+  clearSearch: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  list: { paddingHorizontal: 12, paddingTop: 15, paddingBottom: 128, flexGrow: 1 },
+  listHeader: { height: 30, paddingHorizontal: 5, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  listLabel: { color: colors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1.05 },
+  listCount: { color: colors.subtle, fontSize: 10.5, fontWeight: '800' },
+  conversation: { minHeight: 98, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderRadius: 24, marginBottom: 8, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  conversationPressed: { backgroundColor: colors.surface2, borderColor: 'rgba(139,150,255,.26)', transform: [{ scale: .992 }] },
+  avatarFrame: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface2 },
+  conversationCopy: { flex: 1, minWidth: 0, marginLeft: 12, marginRight: 8 },
+  nameLine: { flexDirection: 'row', alignItems: 'center' },
+  nameInline: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  name: { flexShrink: 1, color: colors.text, fontSize: 15.5, fontWeight: '900' },
+  time: { color: colors.subtle, fontSize: 10.5, fontWeight: '700', marginLeft: 8 },
+  preview: { color: colors.muted, fontSize: 12.5, lineHeight: 17, fontWeight: '600', marginTop: 6 },
+  previewEmpty: { color: colors.accent2 },
+  openIcon: { width: 34, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  empty: { minHeight: 330, marginTop: 8, paddingHorizontal: 30, borderRadius: 28, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  emptyGlow: { position: 'absolute', top: -95, width: 230, height: 190, borderRadius: 115, backgroundColor: colors.accentGlow, opacity: .52 },
+  emptyIcon: { width: 66, height: 66, borderRadius: 26, backgroundColor: colors.accentSoft, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(139,150,255,.25)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyTitle: { color: colors.text, fontSize: 21, fontWeight: '900', letterSpacing: -.4 },
+  emptyBody: { color: colors.muted, fontSize: 12.5, lineHeight: 18, textAlign: 'center', marginTop: 7, maxWidth: 270 },
+  emptyButton: { minWidth: 140, height: 48, borderRadius: 20, backgroundColor: colors.accent, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 18 },
+  emptyButtonText: { color: colors.white, fontSize: 12, fontWeight: '900' },
+  modalSafe: { flex: 1, backgroundColor: colors.bg },
+  sheetHandle: { width: 42, height: 4, borderRadius: 2, backgroundColor: colors.line, alignSelf: 'center', marginTop: 8 },
+  modalHeader: { minHeight: 102, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  modalTitleCopy: { flex: 1, minWidth: 0 },
+  modalKicker: { color: colors.accent2, fontSize: 9, fontWeight: '900', letterSpacing: 1.05 },
+  modalTitle: { color: colors.text, fontSize: 25, lineHeight: 29, fontWeight: '900', letterSpacing: -.65, marginTop: 3 },
+  modalSub: { color: colors.muted, fontSize: 11.5, marginTop: 3 },
+  close: { width: 44, height: 44, borderRadius: 20, backgroundColor: colors.surface2, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  modalSearch: { marginTop: 0, marginBottom: 11 },
+  modalList: { paddingHorizontal: 12, paddingBottom: 30 },
+  person: { minHeight: 78, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 11, marginBottom: 7, borderRadius: 22, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  personCopy: { flex: 1, minWidth: 0, marginLeft: 11 },
+  personNameLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  personName: { color: colors.text, fontSize: 14, fontWeight: '900', flexShrink: 1 },
+  personUser: { color: colors.muted, fontSize: 11.5, fontWeight: '600', marginTop: 3 },
+  friendPill: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.accentSoft },
+  friendPillText: { color: colors.accent2, fontSize: 7.5, fontWeight: '900', letterSpacing: .55 },
+  personAction: { width: 44, height: 44, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
+  noPeople: { color: colors.muted, fontSize: 12.5, textAlign: 'center', paddingVertical: 70 },
 });
