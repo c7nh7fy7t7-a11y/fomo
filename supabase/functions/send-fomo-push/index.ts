@@ -25,9 +25,14 @@ Deno.serve(async (req) => {
   let input:Input;
   try{ input=await req.json(); }catch{ return json({error:'invalid_json'},400); }
   const allowed=new Set<PushType>(['follow','friend','comment','tag','event_approved','event_invite','message']);
-  if(!input?.recipientId||!allowed.has(input.type)||input.recipientId===user.id) return json({error:'invalid_request'},400);
+  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if(!uuid.test(input?.recipientId??'')||!allowed.has(input.type)||input.recipientId===user.id) return json({error:'invalid_request'},400);
 
   const admin=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
+  const {data:blocks,error:blockError}=await admin.from('user_blocks').select('blocker_id')
+    .or(`and(blocker_id.eq.${user.id},blocked_id.eq.${input.recipientId}),and(blocker_id.eq.${input.recipientId},blocked_id.eq.${user.id})`).limit(1);
+  if(blockError)return json({error:'authorization_check_failed'},500);
+  if(blocks?.length)return json({ok:true,skipped:'blocked'});
   let noticeQuery=admin.from('notifications').select('id,user_id,actor_id,type,post_id,event_id,message_id,created_at')
     .eq('user_id',input.recipientId).eq('actor_id',user.id).eq('type',input.type)
     .gte('created_at',new Date(Date.now()-5*60*1000).toISOString()).order('created_at',{ascending:false}).limit(1);
