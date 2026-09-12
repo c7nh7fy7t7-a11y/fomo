@@ -41,7 +41,10 @@
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/icon.png",
-      "bundleIdentifier": "com.fomo.campus"
+      "bundleIdentifier": "com.fomo.campus",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.fomo.campus",
