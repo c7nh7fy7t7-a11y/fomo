@@ -59,6 +59,7 @@ type AppContextValue = {
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
+export const demoEnabled = __DEV__;
 const demoFallbackUser = seedPeople.find((person) => person.id === 'me') ?? seedPeople[0];
 const liveFallbackUser: Person = { id:'loading-user', name:'Student', username:'student', year:'—', program:'', initials:'?' };
 const defaultNotificationPreferences:NotificationPreferences={messages:true,social:true,events:true,reminders:true};
@@ -98,7 +99,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [profileViewCount, setProfileViewCount] = useState(0);
   const [feedLimit,setFeedLimit]=useState(30);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
-  const [demoMode, setDemoMode] = useState(!backendConfigured);
+  const [demoMode, setDemoMode] = useState(demoEnabled && !backendConfigured);
   const [authLoading, setAuthLoading] = useState(backendConfigured);
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(backendConfigured ? null : false);
   const [syncing, setSyncing] = useState(false);
@@ -391,6 +392,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 
   const enterDemoMode = () => {
+    if(!demoEnabled)return;
     deactivateSession(true);
   };
 

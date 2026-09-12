@@ -20,6 +20,8 @@ supabase/functions/**/.env
 *.p12
 *.key
 *.mobileprovision
+credentials.json
+*service-account*.json
 
 # Logs, editor files, and operating-system metadata
 *.log

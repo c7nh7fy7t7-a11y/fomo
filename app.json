@@ -9,7 +9,12 @@
     "icon": "./assets/icon.png",
     "plugins": [
       "expo-router",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "default"
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -44,6 +49,13 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#0B0D0F"
       }
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3e8c1ddb-0a2a-4e3f-9303-6f0e0e7c3b3e"
+      }
+    },
+    "owner": "okayethan"
   }
 }
