@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 
 export type PushKind='follow'|'friend'|'comment'|'tag'|'event_approved'|'event_invite'|'message';
 
-export async function registerPushToken(userId:string,requestPermission:boolean){
+export async function registerPushToken(_userId:string,requestPermission:boolean){
   if(!supabase)return {enabled:false,reason:'backend'};
   if(Platform.OS==='android')await Notifications.setNotificationChannelAsync('default',{name:'FOMO',importance:Notifications.AndroidImportance.DEFAULT}).catch(()=>{});
   let permissions=await Notifications.getPermissionsAsync();
@@ -15,10 +15,17 @@ export async function registerPushToken(userId:string,requestPermission:boolean)
   if(!projectId)return {enabled:false,reason:'project_id'};
   try{
     const token=(await Notifications.getExpoPushTokenAsync({projectId})).data;
-    const result=await supabase.from('user_push_tokens').upsert({
-      user_id:userId,expo_push_token:token,platform:Platform.OS==='ios'?'ios':Platform.OS==='android'?'android':'unknown',
-      device_name:null,updated_at:new Date().toISOString(),last_seen_at:new Date().toISOString(),
-    },{onConflict:'expo_push_token'});
+    let result=await supabase.rpc('claim_fomo_push_token',{
+      p_expo_push_token:token,
+      p_platform:Platform.OS==='ios'?'ios':Platform.OS==='android'?'android':'unknown',
+      p_device_name:null,
+    });
+    if(result.error?.code==='PGRST202'){
+      result=await supabase.from('user_push_tokens').upsert({
+        user_id:_userId,expo_push_token:token,platform:Platform.OS==='ios'?'ios':Platform.OS==='android'?'android':'unknown',
+        device_name:null,updated_at:new Date().toISOString(),last_seen_at:new Date().toISOString(),
+      },{onConflict:'expo_push_token'});
+    }
     if(result.error)throw result.error;
     return {enabled:true,token};
   }catch(error:any){console.warn('[FOMO:push-register]',error?.message??error);return {enabled:false,reason:'token'};}
@@ -51,4 +58,12 @@ export async function scheduleEventReminder(input:{eventId:string;title:string;e
 }
 export async function cancelEventReminder(eventId:string){
   try{const id=localStorage.getItem(reminderKey(eventId));if(id){await Notifications.cancelScheduledNotificationAsync(id).catch(()=>{});localStorage.removeItem(reminderKey(eventId));}}catch{}
+}
+export async function cancelAllEventReminders(){
+  const scheduled=await Notifications.getAllScheduledNotificationsAsync().catch(()=>[]);
+  await Promise.all(scheduled.filter((item)=>item.content.data?.type==='event_reminder').map((item)=>Notifications.cancelScheduledNotificationAsync(item.identifier).catch(()=>{})));
+  try{
+    const keys=Array.from({length:localStorage.length},(_,index)=>localStorage.key(index)).filter((key):key is string=>Boolean(key?.startsWith('fomo:v62:reminder:')));
+    keys.forEach((key)=>localStorage.removeItem(key));
+  }catch{}
 }

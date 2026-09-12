@@ -24,7 +24,7 @@ export default function EventDetail() {
   const {
     currentUser, events, people, followingIds, friendIds, savedEventIds, requestedEventIds, eventRequestIdsByEvent, posts,
     toggleGoing, toggleEventRequest, approveEventRequest, declineEventRequest, removeEventAttendee, cancelEvent, addEventPhoto,
-    toggleSavedEvent, shareEventWithPerson, addCohost, removeCohost, invitePeople, report, refreshAll, demoMode,
+    toggleSavedEvent, shareEventWithPerson, addCohost, removeCohost, invitePeople, report, refreshAll, revalidateEventAccess, demoMode,
   } = useApp();
   const event = events.find((item) => item.id === id);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -33,6 +33,15 @@ export default function EventDetail() {
   const [selectedInvitees, setSelectedInvitees] = useState<string[]>([]);
   const [inviteBusy, setInviteBusy] = useState(false);
   const [cohostBusy, setCohostBusy] = useState<string>();
+  const [accessVerified,setAccessVerified]=useState(demoMode);
+
+  useEffect(()=>{
+    let active=true;
+    if(demoMode){setAccessVerified(true);return()=>{active=false;};}
+    setAccessVerified(false);
+    revalidateEventAccess().then((verified)=>{if(active)setAccessVerified(verified);});
+    return()=>{active=false;};
+  },[demoMode,id,revalidateEventAccess]);
 
   useEffect(() => {
     const client = supabase;
@@ -66,7 +75,8 @@ export default function EventDetail() {
   const saved = savedEventIds.includes(event.id);
   const requested = requestedEventIds.includes(event.id);
   // RLS protects the row; this separate viewer-state gate prevents accidental rendering if precise data is present.
-  const eventLocation = eventLocationForViewer(event, currentUser?.id);
+  const accessSafeEvent=accessVerified?event:{...event,exactLocation:undefined,exactLatitude:undefined,exactLongitude:undefined,photos:[]};
+  const eventLocation = eventLocationForViewer(accessSafeEvent, currentUser?.id);
   const canSeeExact = eventLocation.canSeeExact;
   const canShowExactCoords = eventLocation.showsExactCoordinates;
   const attendees = event.attendeeIds
@@ -86,7 +96,8 @@ export default function EventDetail() {
     : followedGoing.length
       ? `${followedGoing.length} ${followedGoing.length === 1 ? 'person' : 'people'} you follow ${followedGoing.length === 1 ? 'is' : 'are'} going`
       : 'Be the friend who starts it.';
-  const eventPosts = posts.filter((post) => post.eventId === event.id);
+  const eventPosts = accessVerified?posts.filter((post) => post.eventId === event.id):[];
+  const eventPhotos=accessVerified?event.photos:[];
   const cohosts = (event.cohostIds ?? [])
     .map((cohostId) => people.find((person) => person.id === cohostId))
     .filter(Boolean) as typeof people;
@@ -94,7 +105,7 @@ export default function EventDetail() {
   const displayLat = eventLocation.latitude;
   const displayLng = eventLocation.longitude;
   const exactLocationCopy = canSeeExact
-    ? (event.exactLocation ?? (eventLocation.hasExactCoordinates ? 'Precise pin available' : 'Exact details unavailable'))
+    ? (accessSafeEvent.exactLocation ?? (eventLocation.hasExactCoordinates ? 'Precise pin available' : 'Exact details unavailable'))
     : 'Available after approval or invitation';
   const rsvpDisabled = isManager || event.privacy === 'Private';
 
@@ -283,7 +294,7 @@ export default function EventDetail() {
                 <Ionicons name="add" color={colors.accent2} size={17} /><Text style={styles.addPhoto}>Add photo</Text>
               </Pressable>
             </View>
-            {eventPosts.length || event.photos.length ? (
+            {eventPosts.length || eventPhotos.length ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>
                 {eventPosts.map((post) => (
                   <Pressable key={post.id} onPress={() => router.push(`/post/${post.id}`)} style={styles.photo} accessibilityRole="button">
@@ -292,7 +303,7 @@ export default function EventDetail() {
                       : <View style={styles.videoTile}><Ionicons name="play" color={colors.white} size={24} /></View>}
                   </Pressable>
                 ))}
-                {event.photos.map((uri, index) => <Image key={`${uri}-${index}`} source={{ uri }} style={styles.photo} resizeMode="cover" />)}
+                {eventPhotos.map((uri, index) => <Image key={`${uri}-${index}`} source={{ uri }} style={styles.photo} resizeMode="cover" />)}
               </ScrollView>
             ) : <Text style={styles.emptyPhotos}>Nothing from this one yet.</Text>}
           </View>

@@ -1,12 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import {
   ChatMessage, ConversationSummary, FeedMediaType, FeedPost, FomoEvent, InterestKey, NotificationPreferences, OrganizerProfile, people as seedPeople, Person, Privacy,
   ReactionKind, seedConversations, seedEvents, seedMessages, seedPosts, SocialNotification,
 } from '@/data/seed';
 import { backendConfigured, supabase } from '@/lib/supabase';
-import { createBackendEvent, loadBackendState, uploadPrivateEventPhoto, uploadPublicImage } from '@/services/backend';
+import { createBackendEvent, loadBackendState, loadRevocableEventAccess, uploadPrivateEventPhoto, uploadPublicImage } from '@/services/backend';
 import { clearUserCache, hasOnboardedCache, markOnboarded, readSessionCache, writeSessionCache } from '@/services/cache';
-import { cancelEventReminder, registerPushToken, scheduleEventReminder, sendPushForNotification, unregisterPushTokens } from '@/services/push';
+import { cancelAllEventReminders, cancelEventReminder, registerPushToken, scheduleEventReminder, sendPushForNotification, unregisterPushTokens } from '@/services/push';
+import { clearSignedUrlCache } from '@/services/mediaCache';
 import { blockPerson, invitePeopleToEvent, reportTarget, ReportReason, ReportTarget, saveNotificationPreferences, saveUserInterests, unblockPerson } from '@/services/v62';
 import {
   addFeedComment, createFeedPost, deleteFeedComment, deleteFeedPost, getMyProfileViewCount,
@@ -36,6 +38,7 @@ type AppContextValue = {
   enterDemoMode: () => void; signUp: (input: SignupInput) => Promise<AuthResult>; signIn: (email: string, password: string) => Promise<AuthResult>;
   completeOnboarding: (input: OnboardingInput) => Promise<void>;
   signOut: () => Promise<void>; refreshAll: () => Promise<void>; refreshFeed: () => Promise<void>; loadMoreFeed: () => Promise<void>; hasMoreFeed:boolean; refreshConversations: () => Promise<void>; refreshNotifications: () => Promise<void>;
+  revalidateEventAccess:()=>Promise<boolean>;
   toggleGoing: (eventId: string) => Promise<void>; toggleEventRequest: (eventId: string) => Promise<void>;
   approveEventRequest: (eventId: string, personId: string) => Promise<void>; declineEventRequest: (eventId: string, personId: string) => Promise<void>;
   removeEventAttendee: (eventId: string, personId: string) => Promise<void>; cancelEvent: (eventId: string) => Promise<void>;
@@ -58,6 +61,23 @@ type AppContextValue = {
 const AppContext = createContext<AppContextValue | null>(null);
 const demoFallbackUser = seedPeople.find((person) => person.id === 'me') ?? seedPeople[0];
 const liveFallbackUser: Person = { id:'loading-user', name:'Student', username:'student', year:'—', program:'', initials:'?' };
+const defaultNotificationPreferences:NotificationPreferences={messages:true,social:true,events:true,reminders:true};
+
+type PromiseRef={current:Promise<void>|null};
+type BooleanRef={current:boolean};
+async function runQueuedRefresh(running:PromiseRef,queued:BooleanRef,task:()=>Promise<void>){
+  queued.current=true;
+  if(running.current){await running.current;return;}
+  const promise=(async()=>{do{queued.current=false;await task();}while(queued.current);})();
+  running.current=promise;
+  try{await promise;}finally{if(running.current===promise)running.current=null;}
+}
+
+function isAccountAccessRevoked(error:unknown){
+  const value=typeof error==='object'&&error!==null?error as Record<string,unknown>:{};
+  const message=typeof value.message==='string'?value.message:'';
+  return message.includes('FOMO_ACCOUNT_INACTIVE');
+}
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [people, setPeople] = useState<Person[]>(seedPeople);
@@ -72,7 +92,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<SocialNotification[]>([]);
   const [interests,setInterests]=useState<InterestKey[]>([]);
   const [blockedIds,setBlockedIds]=useState<string[]>([]);
-  const [notificationPreferences,setNotificationPreferences]=useState<NotificationPreferences>({messages:true,social:true,events:true,reminders:true});
+  const [notificationPreferences,setNotificationPreferences]=useState<NotificationPreferences>(defaultNotificationPreferences);
   const [requestedEventIds, setRequestedEventIds] = useState<string[]>([]);
   const [eventRequestIdsByEvent, setEventRequestIdsByEvent] = useState<Record<string, string[]>>({});
   const [profileViewCount, setProfileViewCount] = useState(0);
@@ -83,12 +103,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(backendConfigured ? null : false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | undefined>();
-  const refreshingRef = useRef(false);
-  const feedRefreshingRef = useRef(false);
-  const convoRefreshingRef = useRef(false);
-  const notificationRefreshingRef = useRef(false);
-  const sessionLoadRef = useRef<string | null>(null);
-  const showSyncFailure=(error:unknown)=>{console.warn('[FOMO:sync]',error);setSyncError('Couldn’t refresh right now. Showing your latest saved activity.');};
+  const eventsRef=useRef(events);
+  const activeSessionRef=useRef<string|null>(null);
+  const sessionGenerationRef=useRef(0);
+  const campusRefreshingRef=useRef<Promise<void>|null>(null);
+  const campusRefreshQueuedRef=useRef(false);
+  const refreshingRef=useRef<Promise<void>|null>(null);
+  const refreshQueuedRef=useRef(false);
+  const feedRefreshingRef=useRef<Promise<void>|null>(null);
+  const feedRefreshQueuedRef=useRef(false);
+  const convoRefreshingRef=useRef<Promise<void>|null>(null);
+  const convoRefreshQueuedRef=useRef(false);
+  const notificationRefreshingRef=useRef<Promise<void>|null>(null);
+  const notificationRefreshQueuedRef=useRef(false);
+  const sessionLoadRef=useRef<{id:string;generation:number;promise:Promise<void>}|null>(null);
+  const hydrationRef=useRef<{id:string;generation:number;promise:Promise<boolean>}|null>(null);
+  const hydratedSessionRef=useRef<string|null>(null);
+  const showSyncFailure=useCallback((error:unknown)=>{
+    const value=typeof error==='object'&&error!==null?error as Record<string,unknown>:{};
+    console.warn('[FOMO:sync]',typeof value.code==='string'?value.code:'request_failed');
+    setSyncError('Couldn’t refresh right now. Showing your latest saved activity.');
+  },[]);
 
   const currentUser = sessionUserId
     ? people.find((person) => person.id === sessionUserId) ?? liveFallbackUser
@@ -96,93 +131,192 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const useBackend = backendConfigured && !demoMode && Boolean(sessionUserId) && needsOnboarding === false;
   const unreadNotificationCount = notifications.filter((item) => !item.readAt).length;
 
+  useEffect(()=>{eventsRef.current=events;},[events]);
+
+  const isSessionCurrent=useCallback((id:string,generation:number)=>activeSessionRef.current===id&&sessionGenerationRef.current===generation,[]);
+
+  const resetRefreshCoordination=useCallback(()=>{
+    campusRefreshingRef.current=null;campusRefreshQueuedRef.current=false;
+    refreshingRef.current=null;refreshQueuedRef.current=false;
+    feedRefreshingRef.current=null;feedRefreshQueuedRef.current=false;
+    convoRefreshingRef.current=null;convoRefreshQueuedRef.current=false;
+    notificationRefreshingRef.current=null;notificationRefreshQueuedRef.current=false;
+    sessionLoadRef.current=null;hydrationRef.current=null;hydratedSessionRef.current=null;
+  },[]);
+
+  const resetLiveAccountState=useCallback(()=>{
+    setPeople([]);setEvents([]);setPosts([]);setConversations([]);setOrganizers([]);
+    setFollowingIds([]);setFollowerIds([]);setFriendIds([]);setSavedEventIds([]);setNotifications([]);
+    setInterests([]);setBlockedIds([]);setNotificationPreferences(defaultNotificationPreferences);
+    setRequestedEventIds([]);setEventRequestIdsByEvent({});setProfileViewCount(0);setFeedLimit(30);setSyncError(undefined);
+  },[]);
+
+  const activateSession=useCallback((id:string)=>{
+    if(activeSessionRef.current!==id){
+      if(activeSessionRef.current)cancelAllEventReminders().catch(()=>{});
+      sessionGenerationRef.current+=1;activeSessionRef.current=id;clearSignedUrlCache();resetRefreshCoordination();resetLiveAccountState();
+      setNeedsOnboarding(null);
+    }
+    setSessionUserId(id);setDemoMode(false);setAuthLoading(false);
+    return sessionGenerationRef.current;
+  },[resetLiveAccountState,resetRefreshCoordination]);
+
+  const deactivateSession=useCallback((asDemo=false)=>{
+    if(activeSessionRef.current!==null)sessionGenerationRef.current+=1;
+    activeSessionRef.current=null;clearSignedUrlCache();cancelAllEventReminders().catch(()=>{});resetRefreshCoordination();setSessionUserId(null);setAuthLoading(false);setSyncing(false);
+    if(asDemo){
+      setDemoMode(true);setNeedsOnboarding(false);setPeople(seedPeople);setEvents(seedEvents);setPosts(seedPosts);setConversations(seedConversations);
+      setFollowingIds(['fox','maya']);setFollowerIds(['fox','ava']);setFriendIds(['fox']);setSavedEventIds([]);setNotifications([]);
+      setRequestedEventIds([]);setEventRequestIdsByEvent({});setProfileViewCount(17);setFeedLimit(30);setOrganizers([]);setInterests([]);setBlockedIds([]);setNotificationPreferences(defaultNotificationPreferences);setSyncError(undefined);
+      return;
+    }
+    setDemoMode(false);setNeedsOnboarding(null);resetLiveAccountState();
+  },[resetLiveAccountState,resetRefreshCoordination]);
+
+  const handleBackendFailure=useCallback((error:unknown,id:string,generation:number)=>{
+    if(!isSessionCurrent(id,generation))return;
+    if(isAccountAccessRevoked(error)){
+      clearUserCache(id);deactivateSession(false);
+      supabase?.auth.signOut({scope:'local'}).catch(()=>{});
+      return;
+    }
+    showSyncFailure(error);
+  },[deactivateSession,isSessionCurrent,showSyncFailure]);
+
+  const clearRevocableEventData=useCallback(()=>{
+    const publicEventIds=new Set(eventsRef.current.filter((event)=>event.privacy==='Public').map((event)=>event.id));
+    clearSignedUrlCache('event-photos');
+    setEvents((current)=>current.map((event)=>({...event,exactLocation:undefined,exactLatitude:undefined,exactLongitude:undefined,photos:[]})));
+    setPosts((current)=>current.filter((post)=>!post.eventId||publicEventIds.has(post.eventId)));
+  },[]);
+
   const applyBackendState = useCallback((state: Awaited<ReturnType<typeof loadBackendState>>) => {
     setPeople(state.people); setEvents(state.events); setFollowingIds(state.followingIds); setFollowerIds(state.followerIds);
     setFriendIds(state.friendIds); setSavedEventIds(state.savedEventIds); setRequestedEventIds(state.requestedEventIds);
     setEventRequestIdsByEvent(state.eventRequestIdsByEvent); setOrganizers(state.organizers); setInterests(state.interests); setBlockedIds(state.blockedIds); setNotificationPreferences(state.notificationPreferences);
   }, []);
 
+  const applyCachedSessionState=useCallback((cache:NonNullable<ReturnType<typeof readSessionCache>>)=>{
+    applyBackendState(cache.state);setPosts(cache.posts);setConversations(cache.conversations);setNotifications(cache.notifications);setProfileViewCount(cache.profileViewCount);
+  },[applyBackendState]);
+
   const refreshCampus = useCallback(async () => {
     if (!backendConfigured || demoMode || !sessionUserId) return;
-    try { applyBackendState(await loadBackendState(sessionUserId)); } catch(error:any){ showSyncFailure(error); }
-  }, [applyBackendState,demoMode,sessionUserId]);
+    const id=sessionUserId;const generation=sessionGenerationRef.current;
+    await runQueuedRefresh(campusRefreshingRef,campusRefreshQueuedRef,async()=>{
+      if(!isSessionCurrent(id,generation))return;
+      try{const state=await loadBackendState(id);if(isSessionCurrent(id,generation)){applyBackendState(state);setSyncError(undefined);}}
+      catch(error){handleBackendFailure(error,id,generation);}
+    });
+  }, [applyBackendState,demoMode,handleBackendFailure,isSessionCurrent,sessionUserId]);
 
   const refreshFeed = useCallback(async () => {
-    if (!backendConfigured || demoMode || !sessionUserId || feedRefreshingRef.current) return;
-    feedRefreshingRef.current = true;
-    try { setPosts(await loadFeed(feedLimit)); } finally { feedRefreshingRef.current = false; }
-  }, [demoMode, sessionUserId, feedLimit]);
+    if (!backendConfigured || demoMode || !sessionUserId) return;
+    const id=sessionUserId;const generation=sessionGenerationRef.current;
+    await runQueuedRefresh(feedRefreshingRef,feedRefreshQueuedRef,async()=>{
+      if(!isSessionCurrent(id,generation))return;
+      try{const next=await loadFeed(feedLimit);if(isSessionCurrent(id,generation))setPosts(next);}
+      catch(error){handleBackendFailure(error,id,generation);}
+    });
+  }, [demoMode, sessionUserId, feedLimit,handleBackendFailure,isSessionCurrent]);
 
-  const loadMoreFeed=useCallback(async()=>{if(!backendConfigured||demoMode||!sessionUserId||feedRefreshingRef.current)return;const next=Math.min(feedLimit+30,120);if(next===feedLimit)return;feedRefreshingRef.current=true;try{const nextPosts=await loadFeed(next);setFeedLimit(next);setPosts(nextPosts);}finally{feedRefreshingRef.current=false;}},[demoMode,sessionUserId,feedLimit]);
+  const loadMoreFeed=useCallback(async()=>{if(!backendConfigured||demoMode||!sessionUserId)return;const next=Math.min(feedLimit+30,120);if(next===feedLimit)return;const id=sessionUserId;const generation=sessionGenerationRef.current;try{const nextPosts=await loadFeed(next);if(isSessionCurrent(id,generation)){setFeedLimit(next);setPosts(nextPosts);}}catch(error){handleBackendFailure(error,id,generation);}},[demoMode,sessionUserId,feedLimit,handleBackendFailure,isSessionCurrent]);
   const hasMoreFeed=useBackend&&posts.length>=feedLimit&&feedLimit<120;
 
   const refreshConversations = useCallback(async () => {
-    if (!backendConfigured || demoMode || !sessionUserId || convoRefreshingRef.current) return;
-    convoRefreshingRef.current = true;
-    try { setConversations(await loadConversations(sessionUserId)); } finally { convoRefreshingRef.current = false; }
-  }, [demoMode, sessionUserId]);
+    if (!backendConfigured || demoMode || !sessionUserId) return;
+    const id=sessionUserId;const generation=sessionGenerationRef.current;
+    await runQueuedRefresh(convoRefreshingRef,convoRefreshQueuedRef,async()=>{
+      if(!isSessionCurrent(id,generation))return;
+      try{const next=await loadConversations(id);if(isSessionCurrent(id,generation))setConversations(next);}
+      catch(error){handleBackendFailure(error,id,generation);}
+    });
+  }, [demoMode, sessionUserId,handleBackendFailure,isSessionCurrent]);
 
   const refreshNotifications = useCallback(async () => {
-    if (!backendConfigured || demoMode || !sessionUserId || notificationRefreshingRef.current) return;
-    notificationRefreshingRef.current = true;
-    try { setNotifications(await loadNotifications(80)); } finally { notificationRefreshingRef.current = false; }
-  }, [demoMode, sessionUserId]);
+    if (!backendConfigured || demoMode || !sessionUserId) return;
+    const id=sessionUserId;const generation=sessionGenerationRef.current;
+    await runQueuedRefresh(notificationRefreshingRef,notificationRefreshQueuedRef,async()=>{
+      if(!isSessionCurrent(id,generation))return;
+      try{const next=await loadNotifications(80);if(isSessionCurrent(id,generation))setNotifications(next);}
+      catch(error){handleBackendFailure(error,id,generation);}
+    });
+  }, [demoMode, sessionUserId,handleBackendFailure,isSessionCurrent]);
 
   const refreshAll = useCallback(async () => {
-    if (!backendConfigured || demoMode || !sessionUserId || refreshingRef.current) return;
-    refreshingRef.current = true; setSyncing(true);
-    try {
-      const [state, feed, chats, views, notices] = await Promise.all([
-        loadBackendState(sessionUserId), loadFeed(feedLimit), loadConversations(sessionUserId), getMyProfileViewCount(), loadNotifications(80),
-      ]);
-      applyBackendState(state); setPosts(feed); setConversations(chats); setProfileViewCount(views); setNotifications(notices); setSyncError(undefined);
-      writeSessionCache(sessionUserId,{savedAt:Date.now(),state,posts:feed,conversations:chats,notifications:notices,profileViewCount:views});
-    } catch (error: any) {
-      showSyncFailure(error);
-    } finally { refreshingRef.current = false; setSyncing(false); }
-  }, [applyBackendState, demoMode, sessionUserId, feedLimit]);
+    if (!backendConfigured || demoMode || !sessionUserId) return;
+    const id=sessionUserId;const generation=sessionGenerationRef.current;
+    await runQueuedRefresh(refreshingRef,refreshQueuedRef,async()=>{
+      if(!isSessionCurrent(id,generation))return;
+      setSyncing(true);
+      try {
+        const [state, feed, chats, views, notices] = await Promise.all([
+          loadBackendState(id), loadFeed(feedLimit), loadConversations(id), getMyProfileViewCount(), loadNotifications(80),
+        ]);
+        if(!isSessionCurrent(id,generation))return;
+        applyBackendState(state);setPosts(feed);setConversations(chats);setProfileViewCount(views);setNotifications(notices);setSyncError(undefined);
+        writeSessionCache(id,{savedAt:Date.now(),state,posts:feed,conversations:chats,notifications:notices,profileViewCount:views});
+      } catch (error) { handleBackendFailure(error,id,generation); }
+      finally {if(isSessionCurrent(id,generation))setSyncing(false);}
+    });
+  }, [applyBackendState, demoMode, sessionUserId, feedLimit,handleBackendFailure,isSessionCurrent]);
 
-  const checkOnboarding = useCallback(async (id: string) => {
+  const checkOnboarding = useCallback(async (id: string,generation=sessionGenerationRef.current) => {
     if (!supabase) return false;
-    const { data, error } = await supabase.from('profiles').select('onboarding_completed').eq('id', id).single();
+    const ensure=await supabase.rpc('ensure_fomo_profile');
+    if(ensure.error)throw ensure.error;
+    const { data, error } = await supabase.from('profiles').select('onboarding_completed').eq('id', id).maybeSingle();
     if (error) throw error;
+    if(!data)throw new Error('FOMO_PROFILE_UNAVAILABLE');
     const needs = !Boolean(data?.onboarding_completed);
-    setNeedsOnboarding(needs);
+    if(isSessionCurrent(id,generation))setNeedsOnboarding(needs);
     return needs;
-  }, []);
+  }, [isSessionCurrent]);
 
-  const loadSessionState = useCallback(async (id: string) => {
-    if (!supabase || sessionLoadRef.current === id) return;
-    sessionLoadRef.current = id;
-    const cached=readSessionCache(id);
-    if(cached){
-      applyBackendState(cached.state); setPosts(cached.posts); setConversations(cached.conversations); setNotifications(cached.notifications); setProfileViewCount(cached.profileViewCount);
-    }
-    try {
+  const loadSessionState = useCallback((id: string,generation=sessionGenerationRef.current) => {
+    if (!supabase||!isSessionCurrent(id,generation)) return Promise.resolve();
+    const existing=sessionLoadRef.current;
+    if(existing&&existing.id===id&&existing.generation===generation)return existing.promise;
+    const promise=(async()=>{
+      const cached=readSessionCache(id);
+      if(cached&&isSessionCurrent(id,generation))applyCachedSessionState(cached);
       const [state, feed, chats, views, notices] = await Promise.all([
         loadBackendState(id), loadFeed(feedLimit), loadConversations(id), getMyProfileViewCount(), loadNotifications(80),
       ]);
-      applyBackendState(state); setPosts(feed); setConversations(chats); setProfileViewCount(views); setNotifications(notices); setSyncError(undefined);
+      if(!isSessionCurrent(id,generation))return;
+      applyBackendState(state);setPosts(feed);setConversations(chats);setProfileViewCount(views);setNotifications(notices);setSyncError(undefined);
       writeSessionCache(id,{savedAt:Date.now(),state,posts:feed,conversations:chats,notifications:notices,profileViewCount:views});
-    } finally {
-      if (sessionLoadRef.current === id) sessionLoadRef.current = null;
-    }
-  }, [applyBackendState,feedLimit]);
+    })();
+    sessionLoadRef.current={id,generation,promise};
+    promise.finally(()=>{if(sessionLoadRef.current?.promise===promise)sessionLoadRef.current=null;}).catch(()=>{});
+    return promise;
+  }, [applyBackendState,applyCachedSessionState,feedLimit,isSessionCurrent]);
 
-  const hydrateAuthenticatedSession = useCallback(async (id: string) => {
-    if(hasOnboardedCache(id)){
-      setNeedsOnboarding(false);
-      setSyncing(true); loadSessionState(id).finally(()=>setSyncing(false));
-      checkOnboarding(id).catch(()=>{});
-      return;
-    }
-    const needs = await checkOnboarding(id);
-    if (needs) return;
-    markOnboarded(id);
-    setSyncing(true);
-    try { await loadSessionState(id); }
-    finally { setSyncing(false); }
-  }, [checkOnboarding, loadSessionState]);
+  const hydrateAuthenticatedSession = useCallback((id: string,generation=sessionGenerationRef.current) => {
+    const existing=hydrationRef.current;
+    if(existing&&existing.id===id&&existing.generation===generation)return existing.promise;
+    const promise=(async()=>{
+      try{
+        const cachedOnboarding=hasOnboardedCache(id);
+        if(cachedOnboarding&&isSessionCurrent(id,generation))setNeedsOnboarding(false);
+        if(cachedOnboarding){
+          const cached=readSessionCache(id);if(cached&&isSessionCurrent(id,generation))applyCachedSessionState(cached);
+          setSyncing(true);await checkOnboarding(id,generation);await loadSessionState(id,generation);
+          if(isSessionCurrent(id,generation))hydratedSessionRef.current=id;
+          return false;
+        }
+        const needs=await checkOnboarding(id,generation);
+        if(needs){if(isSessionCurrent(id,generation))hydratedSessionRef.current=id;return true;}
+        markOnboarded(id);if(isSessionCurrent(id,generation))setSyncing(true);
+        await loadSessionState(id,generation);
+        if(isSessionCurrent(id,generation))hydratedSessionRef.current=id;
+        return false;
+      }finally{if(isSessionCurrent(id,generation))setSyncing(false);}
+    })();
+    hydrationRef.current={id,generation,promise};
+    promise.finally(()=>{if(hydrationRef.current?.promise===promise)hydrationRef.current=null;}).catch(()=>{});
+    return promise;
+  }, [applyCachedSessionState,checkOnboarding,isSessionCurrent,loadSessionState]);
 
   useEffect(() => {
     if (!backendConfigured || !supabase) { setAuthLoading(false); setNeedsOnboarding(false); return; }
@@ -190,31 +324,61 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       const id = data.session?.user.id ?? null;
-      setSessionUserId(id);
-      setAuthLoading(false);
-      if (!id) { setNeedsOnboarding(null); return; }
-      setDemoMode(false);
-      setNeedsOnboarding(null);
-      hydrateAuthenticatedSession(id).catch((error: any) => mounted && showSyncFailure(error));
-    });
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if(!id){deactivateSession(false);return;}
+      const generation=activateSession(id);
+      if(hydratedSessionRef.current!==id)hydrateAuthenticatedSession(id,generation).catch((error)=>{if(mounted){handleBackendFailure(error,id,generation);if(isSessionCurrent(id,generation))setNeedsOnboarding(false);}});
+    }).catch((error)=>{if(mounted){deactivateSession(false);showSyncFailure(error);}});
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       const id = session?.user.id ?? null;
-      setSessionUserId(id);
-      if (!id) { setNeedsOnboarding(null); return; }
-      setDemoMode(false);
-      setNeedsOnboarding(null);
-      setTimeout(() => hydrateAuthenticatedSession(id).catch((error: any) => showSyncFailure(error)), 0);
+      if(!id){deactivateSession(false);return;}
+      const same=activeSessionRef.current===id;
+      const generation=activateSession(id);
+      if(same&&(event==='TOKEN_REFRESHED'||event==='USER_UPDATED'||event==='INITIAL_SESSION'))return;
+      setTimeout(() => hydrateAuthenticatedSession(id,generation).catch((error)=>{handleBackendFailure(error,id,generation);if(isSessionCurrent(id,generation))setNeedsOnboarding(false);}), 0);
     });
     return () => { mounted = false; authListener.subscription.unsubscribe(); };
-  }, [hydrateAuthenticatedSession]);
+  }, [activateSession,deactivateSession,handleBackendFailure,hydrateAuthenticatedSession,isSessionCurrent,showSyncFailure]);
+
+  const revalidateRevocableEventAccess=useCallback(async()=>{
+    if(!backendConfigured||demoMode||!sessionUserId)return demoMode;
+    const id=sessionUserId;const generation=sessionGenerationRef.current;
+    try{
+      const access=await loadRevocableEventAccess();
+      if(!isSessionCurrent(id,generation))return false;
+      clearSignedUrlCache('event-photos');
+      setEvents((current)=>current.filter((event)=>access.visibleEventIds.has(event.id)).map((event)=>({
+        ...event,
+        exactLocation:access.locationEventIds.has(event.id)?event.exactLocation:undefined,
+        exactLatitude:access.locationEventIds.has(event.id)?event.exactLatitude:undefined,
+        exactLongitude:access.locationEventIds.has(event.id)?event.exactLongitude:undefined,
+        photos:access.photoEventIds.has(event.id)?event.photos:[],
+      })));
+      setPosts((current)=>current.filter((post)=>!post.eventId||access.visibleEventIds.has(post.eventId)));
+      return true;
+    }catch(error){clearRevocableEventData();if(isAccountAccessRevoked(error))handleBackendFailure(error,id,generation);return false;}
+  },[clearRevocableEventData,demoMode,handleBackendFailure,isSessionCurrent,sessionUserId]);
+
+  useEffect(()=>{
+    if(!useBackend)return;
+    const interval=setInterval(()=>{revalidateRevocableEventAccess();},30_000);
+    const appState=AppState.addEventListener('change',(state)=>{
+      if(state!=='active'){clearRevocableEventData();return;}
+      revalidateRevocableEventAccess();refreshAll();
+      if(sessionUserId&&hydratedSessionRef.current!==sessionUserId){
+        const generation=sessionGenerationRef.current;
+        hydrateAuthenticatedSession(sessionUserId,generation).catch((error)=>{handleBackendFailure(error,sessionUserId,generation);if(isSessionCurrent(sessionUserId,generation))setNeedsOnboarding(false);});
+      }
+    });
+    return()=>{clearInterval(interval);appState.remove();};
+  },[clearRevocableEventData,handleBackendFailure,hydrateAuthenticatedSession,isSessionCurrent,refreshAll,revalidateRevocableEventAccess,sessionUserId,useBackend]);
 
   useEffect(() => {
     if (!useBackend || !supabase || !sessionUserId) return;
     const channel = supabase
       .channel(`fomo-v62-core-${sessionUserId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => refreshCampus())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_attendees', filter:`user_id=eq.${sessionUserId}` }, () => refreshCampus())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_cohosts', filter:`user_id=eq.${sessionUserId}` }, () => refreshCampus())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_attendees', filter:`user_id=eq.${sessionUserId}` }, () => {revalidateRevocableEventAccess();refreshCampus();})
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_cohosts', filter:`user_id=eq.${sessionUserId}` }, () => {revalidateRevocableEventAccess();refreshCampus();})
       .on('postgres_changes', { event: '*', schema: 'public', table: 'follows', filter:`follower_id=eq.${sessionUserId}` }, () => refreshCampus())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'follows', filter:`following_id=eq.${sessionUserId}` }, () => refreshCampus())
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'feed_posts' }, () => refreshFeed())
@@ -223,13 +387,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .subscribe();
     registerPushToken(sessionUserId,false).catch(()=>{});
     return () => { supabase!.removeChannel(channel); };
-  }, [refreshCampus, refreshFeed, refreshNotifications, sessionUserId, useBackend]);
+  }, [refreshCampus, refreshFeed, refreshNotifications, revalidateRevocableEventAccess, sessionUserId, useBackend]);
 
 
   const enterDemoMode = () => {
-    setDemoMode(true); setSessionUserId(null); setNeedsOnboarding(false); setPeople(seedPeople); setEvents(seedEvents); setPosts(seedPosts); setConversations(seedConversations);
-    setFollowingIds(['fox','maya']); setFollowerIds(['fox','ava']); setFriendIds(['fox']); setSavedEventIds([]); setNotifications([]);
-    setRequestedEventIds([]); setEventRequestIdsByEvent({}); setProfileViewCount(17); setFeedLimit(30); setOrganizers([]); setInterests([]); setBlockedIds([]); setNotificationPreferences({messages:true,social:true,events:true,reminders:true}); setSyncError(undefined);
+    deactivateSession(true);
   };
 
   const signUp = async (input: SignupInput): Promise<AuthResult> => {
@@ -237,35 +399,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const normalizedEmail = input.email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) throw new Error('Enter a valid email address.');
     if (input.password.length < 8) throw new Error('Use a password with at least 8 characters.');
-    setDemoMode(false);
     const { data, error } = await supabase.auth.signUp({ email: normalizedEmail, password: input.password });
     if (error) throw error;
     if (!data.session?.user.id) return { needsEmailConfirmation: true };
     const userId = data.session.user.id;
-    setSessionUserId(userId);
-    const needs = await checkOnboarding(userId);
-    return { needsOnboarding: needs };
+    const generation=activateSession(userId);
+    try{return {needsOnboarding:await hydrateAuthenticatedSession(userId,generation)};}
+    catch(error){handleBackendFailure(error,userId,generation);if(isAccountAccessRevoked(error))throw error;if(isSessionCurrent(userId,generation))setNeedsOnboarding(true);return {needsOnboarding:true};}
   };
 
   const signIn = async (email: string, password: string): Promise<AuthResult> => {
     if (!backendConfigured || !supabase) throw new Error('Supabase is not connected yet.');
-    setDemoMode(false);
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     if (error) throw error;
     const id = data.user.id;
-    setSessionUserId(id);
-    if(hasOnboardedCache(id)){
-      setNeedsOnboarding(false);
-      setSyncing(true); loadSessionState(id).catch((loadError:any)=>showSyncFailure(loadError)).finally(()=>setSyncing(false));
-      checkOnboarding(id).catch(()=>{});
-      return {needsOnboarding:false};
-    }
-    const needs = await checkOnboarding(id);
-    if (!needs) {
-      markOnboarded(id); setSyncing(true);
-      loadSessionState(id).catch((loadError: any) => showSyncFailure(loadError)).finally(() => setSyncing(false));
-    }
-    return { needsOnboarding: needs };
+    const generation=activateSession(id);
+    try{return {needsOnboarding:await hydrateAuthenticatedSession(id,generation)};}
+    catch(loadError){handleBackendFailure(loadError,id,generation);if(isAccountAccessRevoked(loadError))throw loadError;if(isSessionCurrent(id,generation))setNeedsOnboarding(false);return {needsOnboarding:false};}
   };
 
   const completeOnboarding = async (input: OnboardingInput) => {
@@ -307,9 +457,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     const oldId=sessionUserId;
-    if (backendConfigured && supabase && !demoMode) { if(oldId) await unregisterPushTokens(oldId).catch(()=>{}); await supabase.auth.signOut(); }
     if(oldId)clearUserCache(oldId);
-    setSessionUserId(null); setNeedsOnboarding(null); setFeedLimit(30); setDemoMode(!backendConfigured); setPeople(seedPeople); setEvents(seedEvents); setPosts(seedPosts); setConversations(seedConversations); setNotifications([]); setOrganizers([]); setInterests([]); setBlockedIds([]);
+    deactivateSession(!backendConfigured);
+    if (backendConfigured && supabase && !demoMode) {
+      if(oldId)await unregisterPushTokens(oldId).catch(()=>{});
+      const result=await supabase.auth.signOut();
+      if(result.error){const localResult=await supabase.auth.signOut({scope:'local'});if(localResult.error)throw localResult.error;}
+    }
   };
 
   const toggleGoing = async (eventId: string) => {
@@ -320,7 +474,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ? await supabase.from('event_attendees').delete().eq('event_id', eventId).eq('user_id', sessionUserId)
         : await supabase.from('event_attendees').upsert({ event_id: eventId, user_id: sessionUserId, status: 'going' }, { onConflict: 'event_id,user_id' });
       if (result.error) throw result.error;
-      if(going)cancelEventReminder(eventId).catch(()=>{}); else if(notificationPreferences.reminders)scheduleEventReminder({eventId:event.id,title:event.title,eventDate:event.eventDate,time:event.time,location:event.location}).catch(()=>{});
+      if(going){
+        cancelEventReminder(eventId).catch(()=>{});clearSignedUrlCache('event-photos');
+        setEvents((current)=>current.map((item)=>item.id===eventId?{...item,exactLocation:undefined,exactLatitude:undefined,exactLongitude:undefined,photos:[],attendeeIds:item.attendeeIds.filter((id)=>id!==sessionUserId)}:item));
+        if(event.privacy!=='Public')setPosts((current)=>current.filter((post)=>post.eventId!==eventId));
+      }else if(notificationPreferences.reminders)scheduleEventReminder({eventId:event.id,title:event.title,eventDate:event.eventDate,time:event.time,location:event.location}).catch(()=>{});
       await refreshCampus(); return;
     }
     setEvents((current) => current.map((event) => event.id === eventId ? { ...event, attendeeIds: event.attendeeIds.includes('me') ? event.attendeeIds.filter((id) => id !== 'me') : [...event.attendeeIds, 'me'] } : event));
@@ -554,17 +712,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateNotificationPreferences=async(prefs:NotificationPreferences)=>{const previous=notificationPreferences;setNotificationPreferences(prefs);try{if(useBackend&&sessionUserId)await saveNotificationPreferences(sessionUserId,prefs);}catch(e){setNotificationPreferences(previous);throw e;}};
   const enablePushNotifications=async()=> sessionUserId?registerPushToken(sessionUserId,true):{enabled:false,reason:'auth'};
   const invitePeople=async(eventId:string,recipientIds:string[])=>{ if(useBackend&&sessionUserId&&supabase){const event=events.find(e=>e.id===eventId);if(event?.privacy==='Private'){const result=await supabase.rpc('invite_people_to_private_event',{p_event_id:eventId,p_recipient_ids:recipientIds});if(result.error)throw result.error;}else{await invitePeopleToEvent(eventId,sessionUserId,recipientIds);}recipientIds.forEach(id=>sendPushForNotification({recipientId:id,type:'event_invite',eventId}).catch(()=>{}));await refreshCampus();await refreshNotifications();} };
-  const blockUser=async(personId:string)=>{if(!sessionUserId)return;const previous=blockedIds;setBlockedIds(cur=>[...new Set([...cur,personId])]);try{if(useBackend){await blockPerson(sessionUserId,personId);await refreshAll();}}catch(e){setBlockedIds(previous);throw e;}};
+  const blockUser=async(personId:string)=>{if(!sessionUserId)return;const previous=blockedIds;setBlockedIds(cur=>[...new Set([...cur,personId])]);try{if(useBackend){await blockPerson(sessionUserId,personId);clearSignedUrlCache();setPeople(cur=>cur.filter(person=>person.id!==personId));setEvents(cur=>cur.filter(event=>event.hostId!==personId));setPosts(cur=>cur.filter(post=>post.authorId!==personId));setConversations(cur=>cur.filter(conversation=>conversation.peerId!==personId));await refreshAll();}}catch(e){setBlockedIds(previous);throw e;}};
   const unblockUser=async(personId:string)=>{if(!sessionUserId)return;const previous=blockedIds;setBlockedIds(cur=>cur.filter(id=>id!==personId));try{if(useBackend){await unblockPerson(sessionUserId,personId);await refreshAll();}}catch(e){setBlockedIds(previous);throw e;}};
   const report=async(target:ReportTarget,reason:ReportReason,details?:string)=>{if(useBackend&&sessionUserId)await reportTarget(sessionUserId,target,reason,details);};
 
   const value = useMemo(() => ({
     currentUser,people,events,posts,conversations,organizers,followingIds,followerIds,friendIds,savedEventIds,notifications,interests,blockedIds,notificationPreferences,unreadNotificationCount,requestedEventIds,eventRequestIdsByEvent,profileViewCount,
     backendConfigured,demoMode,isAuthenticated:Boolean(sessionUserId),authLoading,needsOnboarding,syncing,syncError,enterDemoMode,signUp,signIn,completeOnboarding,signOut,refreshAll,refreshFeed,loadMoreFeed,hasMoreFeed,refreshConversations,refreshNotifications,
+    revalidateEventAccess:revalidateRevocableEventAccess,
     toggleGoing,toggleEventRequest,approveEventRequest,declineEventRequest,removeEventAttendee,cancelEvent,toggleFollow,updateAvatar,updateProfile,
     addEvent,addEventPhoto,toggleSavedEvent,addCohost,removeCohost,createPost,reactToPost,addComment,removeComment,markPostViewed,removeMyTag,removePost,
     openChatWith,getChatMessages,sendChat,shareEventWithPerson,recordPersonView,markNotificationRead,markAllNotificationsRead,getProfileSocialStats,loadProfileFollowLists,saveInterests,updateNotificationPreferences,enablePushNotifications,invitePeople,blockUser,unblockUser,report,
-  }), [currentUser,people,events,posts,conversations,organizers,followingIds,followerIds,friendIds,savedEventIds,notifications,interests,blockedIds,notificationPreferences,unreadNotificationCount,requestedEventIds,eventRequestIdsByEvent,profileViewCount,demoMode,sessionUserId,authLoading,needsOnboarding,syncing,syncError,refreshAll,refreshFeed,loadMoreFeed,hasMoreFeed,refreshConversations,refreshNotifications]);
+  }), [currentUser,people,events,posts,conversations,organizers,followingIds,followerIds,friendIds,savedEventIds,notifications,interests,blockedIds,notificationPreferences,unreadNotificationCount,requestedEventIds,eventRequestIdsByEvent,profileViewCount,demoMode,sessionUserId,authLoading,needsOnboarding,syncing,syncError,refreshAll,refreshFeed,loadMoreFeed,hasMoreFeed,refreshConversations,refreshNotifications,revalidateRevocableEventAccess]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

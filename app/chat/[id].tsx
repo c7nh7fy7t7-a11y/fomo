@@ -19,9 +19,11 @@ export default function ChatScreen(){
   const [messages,setMessages]=useState<ChatMessage[]>([]);const [body,setBody]=useState('');const [sending,setSending]=useState(false);const [keyboardOpen,setKeyboardOpen]=useState(false);
   const listRef=useRef<FlatList<ChatMessage>>(null);
   const inputRef=useRef<TextInput>(null);
+  const loadRequestRef=useRef(0);
+  const sendingRef=useRef(false);
 
-  const load=useCallback(async()=>{if(!id)return;try{setMessages(await getChatMessages(id));setTimeout(()=>listRef.current?.scrollToEnd({animated:false}),50);}catch(error:any){Alert.alert('Couldn’t load messages',friendlyErrorMessage(error,'Try again.'));}},[id,getChatMessages]);
-  useEffect(()=>{load();},[load]);
+  const load=useCallback(async()=>{if(!id)return;const request=++loadRequestRef.current;try{const next=await getChatMessages(id);if(request!==loadRequestRef.current)return;setMessages(next);setTimeout(()=>listRef.current?.scrollToEnd({animated:false}),50);}catch(error:any){if(request===loadRequestRef.current)Alert.alert('Couldn’t load messages',friendlyErrorMessage(error,'Try again.'));}},[id,getChatMessages]);
+  useEffect(()=>{load();return()=>{loadRequestRef.current+=1;};},[load]);
   useEffect(()=>{
     const client=supabase;
     if(!id||demoMode||!backendConfigured||!client)return;
@@ -38,9 +40,9 @@ export default function ChatScreen(){
     return()=>{show.remove();hide.remove();clearTimeout(focusTimer);};
   },[id]);
 
-  const send=async()=>{if(!body.trim()||!id||sending)return;const text=body.trim();const tempId=`local-${Date.now()}`;setBody('');setSending(true);setMessages(cur=>[...cur,{id:tempId,conversationId:id,senderId:currentUser.id,body:text,createdAt:new Date().toISOString()}]);
+  const send=async()=>{if(!body.trim()||!id||sendingRef.current)return;sendingRef.current=true;const text=body.trim();const tempId=`local-${Date.now()}`;setBody('');setSending(true);setMessages(cur=>[...cur,{id:tempId,conversationId:id,senderId:currentUser.id,body:text,createdAt:new Date().toISOString()}]);
     try{await sendChat(id,text);if(!demoMode)await load();setTimeout(()=>listRef.current?.scrollToEnd({animated:true}),80);}
-    catch(error:any){setMessages(cur=>cur.filter(m=>m.id!==tempId));setBody(text);Alert.alert('Couldn’t send',friendlyErrorMessage(error,'Try again.'));}finally{setSending(false);}
+    catch(error:any){setMessages(cur=>cur.filter(m=>m.id!==tempId));setBody(text);Alert.alert('Couldn’t send',friendlyErrorMessage(error,'Try again.'));}finally{sendingRef.current=false;setSending(false);}
   };
 
   return(

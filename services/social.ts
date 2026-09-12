@@ -70,9 +70,10 @@ export async function loadFeed(limit = 40): Promise<FeedPost[]> {
   const views = new Map<string, number>();
   for (const row of (viewResult.data ?? []) as { post_id: string; view_count: number | string }[]) views.set(row.post_id, Number(row.view_count));
 
-  return rows.map((row) => {
+  return rows.flatMap((row) => {
     const media = firstMedia.get(row.id);
-    return {
+    if(!media?.url)return [];
+    return [{
       id: row.id,
       authorId: row.author_id,
       eventId: row.event_id || undefined,
@@ -88,7 +89,7 @@ export async function loadFeed(limit = 40): Promise<FeedPost[]> {
       comments: comments.get(row.id) ?? [],
       viewCount: views.get(row.id) ?? 0,
       createdAt: row.created_at,
-    };
+    }];
   });
 }
 

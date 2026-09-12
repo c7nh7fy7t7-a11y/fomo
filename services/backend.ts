@@ -188,6 +188,23 @@ export async function loadBackendState(userId: string): Promise<BackendState> {
   };
 }
 
+export async function loadRevocableEventAccess(): Promise<{visibleEventIds:Set<string>;locationEventIds:Set<string>;photoEventIds:Set<string>}> {
+  if (!supabase) throw new Error('Supabase is not configured.');
+  const [visibleEvents,locations,photos]=await Promise.all([
+    supabase.from('events').select('id'),
+    supabase.from('event_locations').select('event_id'),
+    supabase.from('event_photos').select('event_id'),
+  ]);
+  if(visibleEvents.error)throw visibleEvents.error;
+  if(locations.error)throw locations.error;
+  if(photos.error)throw photos.error;
+  return {
+    visibleEventIds:new Set((visibleEvents.data??[]).map((row)=>row.id as string)),
+    locationEventIds:new Set((locations.data??[]).map((row)=>row.event_id as string)),
+    photoEventIds:new Set((photos.data??[]).map((row)=>row.event_id as string)),
+  };
+}
+
 async function uriToUpload(uri: string) {
   const arrayBuffer = await fetch(uri).then((res) => res.arrayBuffer());
   const ext = (uri.split('.').pop()?.split('?')[0] || 'jpg').toLowerCase();

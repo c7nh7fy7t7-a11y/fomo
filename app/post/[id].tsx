@@ -20,11 +20,12 @@ export default function PostDetail(){
   const post=posts.find((item)=>item.id===id);
   useEffect(()=>{
     if(!id||demoMode||!backendConfigured||!supabase)return;
-    const channel=supabase.channel(`post-live-${id}`)
+    const client=supabase;
+    const channel=client.channel(`post-live-${id}`)
       .on('postgres_changes',{event:'*',schema:'public',table:'feed_comments',filter:`post_id=eq.${id}`},()=>refreshFeed())
       .on('postgres_changes',{event:'*',schema:'public',table:'feed_reactions',filter:`post_id=eq.${id}`},()=>refreshFeed())
       .subscribe();
-    return()=>{supabase.removeChannel(channel);};
+    return()=>{client.removeChannel(channel);};
   },[id,demoMode,refreshFeed]);
 
   if(!post)return <SafeAreaView style={styles.safe}><View style={styles.head}><Pressable onPress={()=>router.back()} style={styles.back}><Ionicons name="arrow-back" color={colors.text} size={22}/></Pressable></View></SafeAreaView>;

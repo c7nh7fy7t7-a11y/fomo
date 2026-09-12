@@ -23,7 +23,13 @@ export function clearUserCache(userId:string){try{localStorage.removeItem(`${PRE
 
 export function writeSessionCache(userId:string,cache:SessionCache){
   try{
-    const safe:SessionCache={...cache,state:{...cache.state,events:safeEvents(cache.state.events)},conversations:cache.conversations.map(({lastMessage,...conversation})=>conversation)};
+    const publicEventIds=new Set(cache.state.events.filter((event)=>event.privacy==='Public').map((event)=>event.id));
+    const safe:SessionCache={
+      ...cache,
+      state:{...cache.state,events:safeEvents(cache.state.events)},
+      posts:cache.posts.filter((post)=>!post.eventId||publicEventIds.has(post.eventId)),
+      conversations:cache.conversations.map(({lastMessage,...conversation})=>conversation),
+    };
     localStorage.setItem(`${PREFIX}session:${userId}`,JSON.stringify(safe));
   }catch(error){console.warn('[FOMO:cache-write]',error);}
 }
@@ -34,6 +40,10 @@ export function readSessionCache(userId:string):SessionCache|undefined{
     const parsed=JSON.parse(raw) as SessionCache;
     if(!parsed?.savedAt||!parsed.state)return;
     if(Date.now()-parsed.savedAt>24*60*60*1000)return;
+    const publicEventIds=new Set(parsed.state.events.filter((event)=>event.privacy==='Public').map((event)=>event.id));
+    parsed.state={...parsed.state,events:safeEvents(parsed.state.events)};
+    parsed.posts=(parsed.posts??[]).filter((post)=>!post.eventId||publicEventIds.has(post.eventId));
+    parsed.conversations=(parsed.conversations??[]).map(({lastMessage,...conversation})=>conversation);
     if(Date.now()-parsed.savedAt>MAX_POST_CACHE_MS)parsed.posts=[];
     return parsed;
   }catch{return;}
