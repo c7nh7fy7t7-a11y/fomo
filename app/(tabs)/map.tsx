@@ -6,22 +6,23 @@ import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
-import { FomoEvent } from '@/data/seed';
+import type { FomoEvent } from '@/data/seed';
 import { categoryColor, categorySoft, colors } from '@/theme/colors';
 import { AvatarStack } from '@/components/AvatarStack';
 import { GlassSurface } from '@/components/GlassSurface';
+import { eventLocationForViewer } from '@/utils/eventLocation';
 
 const iconFor=(category:string):keyof typeof Ionicons.glyphMap=>category==='Study'?'book':category==='Clubs'?'people':category==='Sports & Rec'?'football':category==='Campus Event'?'school':'sparkles';
 
 type TrayState='collapsed'|'partial'|'expanded';
 export default function MapScreen(){
   const router=useRouter(); const insets=useSafeAreaInsets(); const {height}=useWindowDimensions();
-  const {events,people,friendIds}=useApp();
+  const {currentUser,events,people,friendIds}=useApp();
   const [filter,setFilter]=useState<'All'|'Friends'|'Open'>('All');
   const [selected,setSelected]=useState<FomoEvent|undefined>(events[0]);
   const [tray,setTray]=useState<TrayState>('partial');
   const visible=useMemo(()=>filter==='Friends'?events.filter((e)=>e.attendeeIds.some((id)=>friendIds.includes(id))):filter==='Open'?events.filter((e)=>e.privacy==='Public'):events,[events,filter,friendIds]);
-  const coord=(event:FomoEvent)=>({latitude:event.exactLatitude??event.latitude,longitude:event.exactLongitude??event.longitude});
+  const locationFor=(event:FomoEvent)=>eventLocationForViewer(event,currentUser?.id);
   const trayHeight=tray==='collapsed'?72:tray==='partial'?Math.min(232,height*.30):Math.min(460,height*.56);
   const bottomNavClearance=88+Math.max(insets.bottom,8);
   const cycleTray=()=>{setTray((cur)=>cur==='collapsed'?'partial':cur==='partial'?'expanded':'collapsed');Haptics.selectionAsync().catch(()=>{});};
@@ -30,7 +31,7 @@ export default function MapScreen(){
     <View style={styles.head}><View><Text style={styles.title}>Map</Text><Text style={styles.sub}>See where campus is moving.</Text></View><View style={styles.filters}>{(['All','Friends','Open'] as const).map((item)=><Pressable key={item} onPress={()=>{setFilter(item);Haptics.selectionAsync().catch(()=>{});}} style={[styles.filter,filter===item&&styles.filterActive]}><Text style={[styles.filterText,filter===item&&styles.filterTextActive]}>{item}</Text></Pressable>)}</View></View>
     <View style={[styles.mapWrap,{marginBottom:bottomNavClearance}]}>
       <MapView style={StyleSheet.absoluteFill} initialRegion={{latitude:52.129,longitude:-106.633,latitudeDelta:.035,longitudeDelta:.035}} userInterfaceStyle="dark">
-        {visible.map((event)=>{const active=selected?.id===event.id;return <Marker key={event.id} coordinate={coord(event)} onPress={()=>{setSelected(event);setTray('partial');}}><View style={[styles.marker,active&&styles.markerActive,{borderColor:categoryColor(event.category),backgroundColor:active?categoryColor(event.category):colors.surface2}]}><Ionicons name={iconFor(event.category)} color={active?colors.white:categoryColor(event.category)} size={14}/></View></Marker>;})}
+        {visible.map((event)=>{const active=selected?.id===event.id;const location=locationFor(event);return <Marker key={event.id} coordinate={{latitude:location.latitude,longitude:location.longitude}} onPress={()=>{setSelected(event);setTray('partial');}}><View style={[styles.marker,active&&styles.markerActive,{borderColor:categoryColor(event.category),backgroundColor:active?categoryColor(event.category):colors.surface2}]}><Ionicons name={iconFor(event.category)} color={active?colors.white:categoryColor(event.category)} size={14}/></View></Marker>;})}
       </MapView>
       <View style={styles.legend}><View style={styles.legendDot}/><Text style={styles.legendText}>Protected events only reveal exact pins after access.</Text></View>
 
@@ -41,10 +42,10 @@ export default function MapScreen(){
         </Pressable>
         {tray!=='collapsed'?<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
           {visible.length?visible.map((event)=>{
-            const active=selected?.id===event.id; const attendees=event.attendeeIds.map((id)=>people.find((p)=>p.id===id)).filter(Boolean) as typeof people; const friends=attendees.filter((p)=>friendIds.includes(p.id));
+            const active=selected?.id===event.id; const location=locationFor(event); const attendees=event.attendeeIds.map((id)=>people.find((p)=>p.id===id)).filter(Boolean) as typeof people; const friends=attendees.filter((p)=>friendIds.includes(p.id));
             return <Pressable key={event.id} onPress={()=>{setSelected(event);Haptics.selectionAsync().catch(()=>{});}} onLongPress={()=>router.push(`/event/${event.id}`)} style={[styles.eventRow,active&&styles.eventRowActive]}>
               {event.cover?<Image source={{uri:event.cover}} style={styles.thumb}/>:<View style={[styles.thumb,styles.thumbFallback,{backgroundColor:categorySoft(event.category)}]}><Ionicons name={iconFor(event.category)} color={categoryColor(event.category)} size={22}/></View>}
-              <View style={styles.copy}><View style={styles.metaLine}><Text style={[styles.category,{color:categoryColor(event.category)}]}>{event.category.toUpperCase()}</Text><Text style={styles.meta}> · {event.dateLabel} · {event.time}</Text></View><Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text><View style={styles.locationLine}><Ionicons name="location-outline" color={colors.subtle} size={11}/><Text style={styles.location} numberOfLines={1}>{event.exactLocation??event.location}</Text></View><View style={styles.social}>{friends.length?<AvatarStack people={friends} size={21} max={3}/>:null}<Text style={[styles.socialText,friends.length?{marginLeft:6}:null]}>{friends.length?`${friends.length} friends going`:`${event.attendeeIds.length} going`}</Text></View></View>
+              <View style={styles.copy}><View style={styles.metaLine}><Text style={[styles.category,{color:categoryColor(event.category)}]}>{event.category.toUpperCase()}</Text><Text style={styles.meta}> · {event.dateLabel} · {event.time}</Text></View><Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text><View style={styles.locationLine}><Ionicons name="location-outline" color={colors.subtle} size={11}/><Text style={styles.location} numberOfLines={1}>{location.label}</Text></View><View style={styles.social}>{friends.length?<AvatarStack people={friends} size={21} max={3}/>:null}<Text style={[styles.socialText,friends.length?{marginLeft:6}:null]}>{friends.length?`${friends.length} friends going`:`${event.attendeeIds.length} going`}</Text></View></View>
               <Pressable onPress={()=>router.push(`/event/${event.id}`)} style={styles.open}><Ionicons name="arrow-forward" color={colors.white} size={15}/></Pressable>
             </Pressable>;
           }):<View style={styles.empty}><Ionicons name="map-outline" color={colors.accent2} size={25}/><Text style={styles.emptyTitle}>Nothing nearby yet.</Text><Text style={styles.emptyText}>Try another filter or put something on the map.</Text></View>}

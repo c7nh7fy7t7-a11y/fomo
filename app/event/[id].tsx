@@ -13,6 +13,7 @@ import { AvatarStack } from '@/components/AvatarStack';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { categoryColor, colors } from '@/theme/colors';
 import { friendlyErrorMessage } from '@/utils/errors';
+import { eventLocationForViewer } from '@/utils/eventLocation';
 import { showReportSheet } from '@/utils/reporting';
 import { backendConfigured, supabase } from '@/lib/supabase';
 
@@ -64,10 +65,10 @@ export default function EventDetail() {
   const going = event.attendeeIds.includes(currentUser.id);
   const saved = savedEventIds.includes(event.id);
   const requested = requestedEventIds.includes(event.id);
-  const hasExactCoords = event.exactLatitude !== undefined && event.exactLongitude !== undefined;
   // RLS protects the row; this separate viewer-state gate prevents accidental rendering if precise data is present.
-  const canSeeExact = isManager || going;
-  const canShowExactCoords = canSeeExact && hasExactCoords;
+  const eventLocation = eventLocationForViewer(event, currentUser?.id);
+  const canSeeExact = eventLocation.canSeeExact;
+  const canShowExactCoords = eventLocation.showsExactCoordinates;
   const attendees = event.attendeeIds
     .map((attendeeId) => people.find((person) => person.id === attendeeId))
     .filter(Boolean) as typeof people;
@@ -90,10 +91,10 @@ export default function EventDetail() {
     .map((cohostId) => people.find((person) => person.id === cohostId))
     .filter(Boolean) as typeof people;
   const cohostCandidates = people.filter((person) => person.id !== currentUser.id && person.id !== event.hostId).slice(0, 8);
-  const displayLat = canShowExactCoords ? event.exactLatitude! : event.latitude;
-  const displayLng = canShowExactCoords ? event.exactLongitude! : event.longitude;
+  const displayLat = eventLocation.latitude;
+  const displayLng = eventLocation.longitude;
   const exactLocationCopy = canSeeExact
-    ? (event.exactLocation ?? (hasExactCoords ? 'Precise pin available' : 'Exact details unavailable'))
+    ? (event.exactLocation ?? (eventLocation.hasExactCoordinates ? 'Precise pin available' : 'Exact details unavailable'))
     : 'Available after approval or invitation';
   const rsvpDisabled = isManager || event.privacy === 'Private';
 
