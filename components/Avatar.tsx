@@ -2,9 +2,10 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { Person } from '@/data/seed';
 import { colors } from '@/theme/colors';
 
-export function Avatar({ person, size = 42 }: { person: Person; size?: number }) {
-  const frame={width:size,height:size,borderRadius:size*.38};
-  if (person.avatar) return <View style={[styles.frame,frame]}><Image source={{ uri: person.avatar }} style={[StyleSheet.absoluteFill,{borderRadius:size*.38,backgroundColor:colors.surface2}]} /></View>;
+export function Avatar({ person, size = 42, circular = false }: { person: Person; size?: number; circular?: boolean }) {
+  const borderRadius=circular?size/2:size*.38;
+  const frame={width:size,height:size,borderRadius};
+  if (person.avatar) return <View style={[styles.frame,frame]}><Image source={{ uri: person.avatar }} resizeMode="cover" style={[StyleSheet.absoluteFill,{borderRadius,backgroundColor:colors.surface2}]} /></View>;
   return <View style={[styles.fallback,styles.frame,frame]}><Text style={[styles.initials, { fontSize: Math.max(12, size * 0.30) }]}>{person.initials}</Text></View>;
 }
 const styles = StyleSheet.create({

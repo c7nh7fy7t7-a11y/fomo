@@ -39,3 +39,24 @@ Compare Login, Feed, Discover, Search, Event, Profile, Messages, Chat, Notificat
 - Trigger each reaction repeatedly and confirm counts and selected states stay accurate and every emoji-rain burst disappears cleanly.
 - Confirm video remains responsive while reaction buttons are used.
 - Confirm no obvious memory or frame-rate degradation after repeated reactions.
+
+## 7. First-launch app tour
+- Use an account/device that has not completed the app tour and confirm it appears only after authenticated tabs load.
+- Confirm Home, Discover, Create, Messages and You each point to the matching tab.
+- Complete the tour, restart the app and confirm it does not open again automatically.
+- Open Profile → Settings → App tour and confirm the tour can be intentionally replayed.
+- Repeat once using Skip and once using Done.
+
+## 8. Feed video autoplay
+- Scroll a Feed containing at least two video posts and confirm only the current sufficiently visible video autoplays.
+- Confirm playback is muted by default, loops after finishing and pauses after leaving the viewport.
+- Move from Feed to Discover, another bottom tab and the background; confirm playback pauses each time.
+- Return to the visible Feed video and confirm playback resumes without the player visibly remounting.
+- Open inline comments on a video post and confirm the video pauses while the thread is expanded.
+
+## 9. Post event and people pickers
+- Create a photo and a video post and confirm Where was this? initially shows no more than four relevant recent events.
+- Search an older event using partial title text, select it and confirm the published post links to that event.
+- Confirm the empty recent-event and no-search-results messages are clear.
+- Search and select people to tag; confirm profile photos are circular and missing photos use initials.
+- Publish and confirm selected tags still save and open the correct profiles.

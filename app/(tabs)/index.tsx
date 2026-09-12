@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Alert, Animated, AppState, FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ViewToken } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
 import { colors } from '@/theme/colors';
 import { Avatar } from '@/components/Avatar';
@@ -64,7 +64,14 @@ export default function HomeScreen(){
   const [feedMode,setFeedMode]=useState<FeedMode>('All');
   const [filter,setFilter]=useState<(typeof filters)[number]>('All');
   const [commentPostId,setCommentPostId]=useState<string>();
-  const [videoPauseToken,setVideoPauseToken]=useState(0);
+  const [activeVideoPostId,setActiveVideoPostId]=useState<string>();
+  const [appActive,setAppActive]=useState(AppState.currentState==='active');
+  const [screenFocused,setScreenFocused]=useState(false);
+  const viewabilityConfig=useRef({viewAreaCoveragePercentThreshold:55,minimumViewTime:180}).current;
+  const onViewableItemsChanged=useRef(({viewableItems}:{viewableItems:ViewToken<FeedPost>[]})=>{
+    const visibleVideo=viewableItems.find(({isViewable,item})=>isViewable&&item.mediaType==='video');
+    setActiveVideoPostId(visibleVideo?.item.id);
+  }).current;
   const rankedPosts=useMemo(()=>[...posts].sort((a,b)=>{
     const social=(post:FeedPost)=>friendIds.includes(post.authorId)?2:followingIds.includes(post.authorId)?1:0;
     const ageHours=(post:FeedPost)=>Math.max(0,(Date.now()-new Date(post.createdAt).getTime())/3600000);
@@ -73,6 +80,10 @@ export default function HomeScreen(){
   const visiblePosts=useMemo(()=>feedMode==='Friends'
     ? rankedPosts.filter((post)=>friendIds.includes(post.authorId))
     : rankedPosts,[feedMode,friendIds,rankedPosts]);
+
+  useFocusEffect(useCallback(()=>{setScreenFocused(true);return()=>setScreenFocused(false);},[]));
+  useEffect(()=>{const subscription=AppState.addEventListener('change',(state)=>setAppActive(state==='active'));return()=>subscription.remove();},[]);
+  useEffect(()=>{if(activeVideoPostId&&!visiblePosts.some((post)=>post.id===activeVideoPostId))setActiveVideoPostId(undefined);},[activeVideoPostId,visiblePosts]);
 
   useEffect(()=>{
     if(params.view==='feed'){setMode('Feed');setTimeout(()=>pagerRef.current?.scrollTo({x:width,animated:false}),0);}
@@ -194,11 +205,11 @@ export default function HomeScreen(){
   const feedHeader=<>
     <View style={styles.feedTop}><View style={styles.feedTopline}><View style={styles.feedPulse}/><Text style={styles.feedEyebrow}>CAMPUS FEED</Text></View><Text style={styles.feedHint} numberOfLines={1}>Recent moments from your people and events</Text></View>
     <View style={styles.feedModes} accessibilityRole="tablist">
-      {feedModes.map((item)=><Pressable key={item} accessibilityRole="tab" accessibilityState={{selected:feedMode===item}} onPress={()=>{setFeedMode(item);setCommentPostId(undefined);Haptics.selectionAsync().catch(()=>{});}} style={({pressed})=>[styles.feedMode,feedMode===item&&styles.feedModeActive,pressed&&styles.pressed]}><Text style={[styles.feedModeText,feedMode===item&&styles.feedModeTextActive]}>{item}</Text></Pressable>)}
+      {feedModes.map((item)=><Pressable key={item} accessibilityRole="tab" accessibilityState={{selected:feedMode===item}} onPress={()=>{setFeedMode(item);setCommentPostId(undefined);setActiveVideoPostId(undefined);Haptics.selectionAsync().catch(()=>{});}} style={({pressed})=>[styles.feedMode,feedMode===item&&styles.feedModeActive,pressed&&styles.pressed]}><Text style={[styles.feedModeText,feedMode===item&&styles.feedModeTextActive]}>{item}</Text></Pressable>)}
     </View>
     <View style={styles.feedDivider}/>
   </>;
-  const renderFeedPost=useCallback(({item:post}:{item:FeedPost})=><FeedPostCard post={post} people={people} events={events} currentUserId={currentUser.id} pauseToken={videoPauseToken} commentsExpanded={commentPostId===post.id} onReact={(reaction)=>onReaction(post,reaction)} onToggleComments={()=>setCommentPostId((current)=>current===post.id?undefined:post.id)} onAddComment={(body)=>onComment(post,body)} onDeleteComment={onCommentDelete} onCommentInputFocus={keepCommentVisible} onViewed={()=>markPostViewed(post.id)} onRemoveTag={()=>removeMyTag(post.id)} onDelete={()=>Alert.alert('Delete post?','This removes the post for everyone.',[{text:'Cancel',style:'cancel'},{text:'Delete',style:'destructive',onPress:()=>removePost(post.id)}])} onReport={()=>showReportSheet({type:'post',id:post.id},report)}/>,[commentPostId,currentUser.id,events,keepCommentVisible,markPostViewed,onComment,onCommentDelete,onReaction,people,removeMyTag,removePost,report,videoPauseToken]);
+  const renderFeedPost=useCallback(({item:post}:{item:FeedPost})=><FeedPostCard post={post} people={people} events={events} currentUserId={currentUser.id} videoActive={appActive&&screenFocused&&mode==='Feed'&&activeVideoPostId===post.id} commentsExpanded={commentPostId===post.id} onReact={(reaction)=>onReaction(post,reaction)} onToggleComments={()=>setCommentPostId((current)=>current===post.id?undefined:post.id)} onAddComment={(body)=>onComment(post,body)} onDeleteComment={onCommentDelete} onCommentInputFocus={keepCommentVisible} onViewed={()=>markPostViewed(post.id)} onRemoveTag={()=>removeMyTag(post.id)} onDelete={()=>Alert.alert('Delete post?','This removes the post for everyone.',[{text:'Cancel',style:'cancel'},{text:'Delete',style:'destructive',onPress:()=>removePost(post.id)}])} onReport={()=>showReportSheet({type:'post',id:post.id},report)}/>,[activeVideoPostId,appActive,commentPostId,currentUser.id,events,keepCommentVisible,markPostViewed,mode,onComment,onCommentDelete,onReaction,people,removeMyTag,removePost,report,screenFocused]);
   const feedPage=<FlatList
     ref={feedListRef}
     style={{width}}
@@ -208,9 +219,10 @@ export default function HomeScreen(){
     onScroll={(e)=>onFeedScroll(e.nativeEvent.contentOffset.y)} scrollEventThrottle={32}
     contentContainerStyle={[styles.feed,{width},feedRestoreMinHeight?{minHeight:feedRestoreMinHeight}:null]}
     refreshControl={<RefreshControl refreshing={syncing} onRefresh={refreshFeed} tintColor={colors.accent2}/>}
-    onScrollBeginDrag={()=>setVideoPauseToken((n)=>n+1)}
+    viewabilityConfig={viewabilityConfig}
+    onViewableItemsChanged={onViewableItemsChanged}
     data={visiblePosts}
-    extraData={commentPostId}
+    extraData={`${commentPostId??''}:${activeVideoPostId??''}:${mode}:${appActive}:${screenFocused}`}
     keyExtractor={(post)=>post.id}
     renderItem={renderFeedPost}
     automaticallyAdjustKeyboardInsets={Platform.OS==='ios'}

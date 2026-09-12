@@ -7,6 +7,7 @@ import { Avatar } from '@/components/Avatar';
 import { useApp } from '@/context/AppContext';
 import { colors } from '@/theme/colors';
 import { friendlyErrorMessage } from '@/utils/errors';
+import { requestFirstLaunchTutorial } from '@/services/tutorial';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -53,6 +54,7 @@ export default function SettingsScreen() {
           <SettingsRow icon="person-outline" title="Edit profile" subtitle="Photo, name, bio and school details" onPress={() => router.push('/edit-profile')} />
           <SettingsRow icon="notifications-outline" title="Notifications" subtitle="Choose what FOMO sends you" onPress={() => router.push('/notification-settings')} />
           <SettingsRow icon="sparkles-outline" title="Your interests" subtitle="Tune what appears in Discover" onPress={() => router.push('/interests')} />
+          <SettingsRow icon="play-circle-outline" title="App tour" subtitle="Replay the quick FOMO walkthrough" onPress={() => { requestFirstLaunchTutorial(currentUser.id); router.replace('/(tabs)'); }} />
           <SettingsRow icon="help-circle-outline" title="Help & support" subtitle="Coming soon" last />
         </View>
 

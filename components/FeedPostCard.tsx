@@ -31,11 +31,11 @@ function reactionHapticStutter(){
   setTimeout(()=>Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(()=>{}),520);
 }
 
-function InlineVideo({uri,toggleToken,pauseToken}:{uri:string;toggleToken:number;pauseToken:number}){
-  const player=useVideoPlayer(uri,(p)=>{p.loop=false;});
+function InlineVideo({uri,toggleToken,shouldPlay}:{uri:string;toggleToken:number;shouldPlay:boolean}){
+  const player=useVideoPlayer(uri,(p)=>{p.loop=true;p.muted=true;});
   const {isPlaying}=useEvent(player,'playingChange',{isPlaying:player.playing});
   useEffect(()=>{if(!toggleToken)return;if(player.playing)player.pause();else player.play();},[toggleToken]);
-  useEffect(()=>{if(pauseToken)player.pause();},[pauseToken]);
+  useEffect(()=>{try{if(shouldPlay)player.play();else player.pause();}catch{}},[player,shouldPlay]);
   useEffect(()=>()=>{try{player.pause();}catch{}},[player]);
   return <>
     <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" surfaceType="textureView" nativeControls={false} fullscreenOptions={{enable:true}} pointerEvents="none"/>
@@ -44,9 +44,9 @@ function InlineVideo({uri,toggleToken,pauseToken}:{uri:string;toggleToken:number
 }
 
 export function FeedPostCard({
-  post, people, events, currentUserId, pauseToken=0, commentsExpanded=false, onReact, onToggleComments, onAddComment, onDeleteComment, onCommentInputFocus, onViewed, onRemoveTag, onDelete, onReport,
+  post, people, events, currentUserId, videoActive=false, commentsExpanded=false, onReact, onToggleComments, onAddComment, onDeleteComment, onCommentInputFocus, onViewed, onRemoveTag, onDelete, onReport,
 }: {
-  post: FeedPost; people: Person[]; events: FomoEvent[]; currentUserId: string; pauseToken?: number;
+  post: FeedPost; people: Person[]; events: FomoEvent[]; currentUserId: string; videoActive?: boolean;
   commentsExpanded?: boolean; onReact: (reaction?: ReactionKind) => void; onToggleComments: () => void;
   onAddComment: (body:string) => Promise<void>; onDeleteComment: (commentId:string) => Promise<void>;
   onCommentInputFocus?: (target:number) => void;
@@ -121,7 +121,7 @@ export function FeedPostCard({
     </View>
 
     <Pressable onPress={handleMediaPress} pressRetentionOffset={{top:5,left:5,right:5,bottom:5}} style={[styles.mediaWrap,{height:mediaHeight}]}>
-      {post.mediaUrl&&!mediaFailed?mediaType==='video'?<><View style={[StyleSheet.absoluteFill,styles.mediaMissing]}><Ionicons name="videocam-outline" color={colors.subtle} size={30}/></View><InlineVideo uri={post.mediaUrl} toggleToken={videoToggleToken} pauseToken={pauseToken}/></>:<Image source={{uri:post.mediaUrl}} style={StyleSheet.absoluteFill} resizeMode="cover" onLoadStart={()=>setMediaLoading(true)} onLoad={(e)=>{setMediaLoading(false);const src=e.nativeEvent.source;if(src?.width&&src?.height)setImageAspect(src.width/src.height);}} onError={()=>{setMediaLoading(false);setMediaFailed(true);}}/>:<View style={[StyleSheet.absoluteFill,styles.mediaMissing]}><Ionicons name={mediaType==='video'?'videocam-outline':'image-outline'} color={colors.subtle} size={34}/><Text style={styles.mediaMissingText}>Media unavailable</Text></View>}
+      {post.mediaUrl&&!mediaFailed?mediaType==='video'?<><View style={[StyleSheet.absoluteFill,styles.mediaMissing]}><Ionicons name="videocam-outline" color={colors.subtle} size={30}/></View><InlineVideo uri={post.mediaUrl} toggleToken={videoToggleToken} shouldPlay={videoActive&&!commentsExpanded}/></>:<Image source={{uri:post.mediaUrl}} style={StyleSheet.absoluteFill} resizeMode="cover" onLoadStart={()=>setMediaLoading(true)} onLoad={(e)=>{setMediaLoading(false);const src=e.nativeEvent.source;if(src?.width&&src?.height)setImageAspect(src.width/src.height);}} onError={()=>{setMediaLoading(false);setMediaFailed(true);}}/>:<View style={[StyleSheet.absoluteFill,styles.mediaMissing]}><Ionicons name={mediaType==='video'?'videocam-outline':'image-outline'} color={colors.subtle} size={34}/><Text style={styles.mediaMissingText}>Media unavailable</Text></View>}
       {mediaLoading?<View pointerEvents="none" style={[StyleSheet.absoluteFill,styles.mediaLoading]}><Animated.View style={styles.loadingShimmer}/></View>:null}
       <View pointerEvents="none" style={styles.mediaEdge}/>
       {event?<BlurView pointerEvents="none" intensity={50} tint="systemUltraThinMaterialDark" style={styles.eventPill}><View style={styles.eventPillDot}/><Text style={styles.eventPillText} numberOfLines={1}>{event.title}</Text></BlurView>:null}

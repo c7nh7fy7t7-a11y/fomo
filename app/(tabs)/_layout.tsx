@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/theme/colors';
 import { useApp } from '@/context/AppContext';
 import { Skeleton } from '@/components/Skeleton';
+import { FirstLaunchTutorial } from '@/components/FirstLaunchTutorial';
 
 const inactiveIcons:Record<string,keyof typeof Ionicons.glyphMap>={index:'home-outline',map:'compass-outline',messages:'chatbubble-ellipses-outline',profile:'person-outline'};
 const activeIcons:Record<string,keyof typeof Ionicons.glyphMap>={index:'home',map:'compass',messages:'chatbubble-ellipses',profile:'person'};
@@ -20,10 +21,10 @@ function TabIcon({route,focused,color,size}:{route:string;focused:boolean;color:
 }
 
 export default function TabLayout(){
-  const {authLoading}=useApp();
+  const {authLoading,currentUser,isAuthenticated,demoMode}=useApp();
   const insets=useSafeAreaInsets();
   if(authLoading)return <View style={styles.loading}><View style={styles.loadingBrand}/><Skeleton style={styles.loadingLine}/><Skeleton style={[styles.loadingLine,{width:112}]}/></View>;
-  return <Tabs
+  return <><Tabs
     screenListeners={{tabPress:()=>{Haptics.selectionAsync().catch(()=>{});}}}
     screenOptions={({route})=>({
       headerShown:false,tabBarShowLabel:true,tabBarHideOnKeyboard:true,
@@ -38,7 +39,7 @@ export default function TabLayout(){
     <Tabs.Screen name="messages" options={{title:'Messages'}}/>
     <Tabs.Screen name="profile" options={{title:'You'}}/>
     <Tabs.Screen name="friends" options={{href:null}}/>
-  </Tabs>;
+  </Tabs>{isAuthenticated||demoMode?<FirstLaunchTutorial userId={currentUser.id}/>:null}</>;
 }
 const styles=StyleSheet.create({
   loading:{flex:1,backgroundColor:colors.bg,alignItems:'center',justifyContent:'center',gap:10},loadingBrand:{width:48,height:48,borderRadius:18,backgroundColor:colors.accentSoft,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(111,125,255,.22)'},loadingLine:{width:150,height:10,borderRadius:5},
