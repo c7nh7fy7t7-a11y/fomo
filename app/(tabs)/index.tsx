@@ -9,9 +9,8 @@ import { colors } from '@/theme/colors';
 import { Avatar } from '@/components/Avatar';
 import { EventCard, FeaturedEvent } from '@/components/EventCard';
 import { FeedPostCard } from '@/components/FeedPostCard';
-import { CreatePostModal } from '@/components/CreatePostModal';
 import { BrandWordmark } from '@/components/BrandWordmark';
-import { FeedMediaType, FeedPost, FomoEvent, ReactionKind } from '@/data/seed';
+import { FeedPost, FomoEvent, ReactionKind } from '@/data/seed';
 import { friendlyErrorMessage } from '@/utils/errors';
 import { showReportSheet } from '@/utils/reporting';
 import { backendConfigured, supabase } from '@/lib/supabase';
@@ -24,6 +23,8 @@ const homeModes=['Discover','Feed','Past'] as const;
 type HomeMode=(typeof homeModes)[number];
 const discoverModes=['Upcoming','Past Highlights'] as const;
 type DiscoverMode=(typeof discoverModes)[number];
+const feedModes=['All','Friends'] as const;
+type FeedMode=(typeof feedModes)[number];
 const TAB_WIDTH=96;
 let savedDiscoverY=0;
 let savedFeedY=0;
@@ -56,12 +57,12 @@ export default function HomeScreen(){
   const scrollX=useRef(new Animated.Value(0)).current;
   const {
     currentUser,events,people,followingIds,friendIds,posts,interests,unreadNotificationCount,refreshAll,refreshFeed,syncing,syncError,demoMode,
-    createPost,reactToPost,addComment,removeComment,markPostViewed,removeMyTag,removePost,report,loadMoreFeed,hasMoreFeed,
+    reactToPost,addComment,removeComment,markPostViewed,removeMyTag,removePost,report,loadMoreFeed,hasMoreFeed,
   }=useApp();
   const [mode,setMode]=useState<HomeMode>('Discover');
   const [discoverMode,setDiscoverMode]=useState<DiscoverMode>('Upcoming');
+  const [feedMode,setFeedMode]=useState<FeedMode>('All');
   const [filter,setFilter]=useState<(typeof filters)[number]>('All');
-  const [createKind,setCreateKind]=useState<FeedMediaType>();
   const [commentPostId,setCommentPostId]=useState<string>();
   const [videoPauseToken,setVideoPauseToken]=useState(0);
   const rankedPosts=useMemo(()=>[...posts].sort((a,b)=>{
@@ -69,6 +70,9 @@ export default function HomeScreen(){
     const ageHours=(post:FeedPost)=>Math.max(0,(Date.now()-new Date(post.createdAt).getTime())/3600000);
     return (social(b)-ageHours(b)/12)-(social(a)-ageHours(a)/12);
   }),[posts,friendIds,followingIds]);
+  const visiblePosts=useMemo(()=>feedMode==='Friends'
+    ? rankedPosts.filter((post)=>friendIds.includes(post.authorId))
+    : rankedPosts,[feedMode,friendIds,rankedPosts]);
 
   useEffect(()=>{
     if(params.view==='feed'){setMode('Feed');setTimeout(()=>pagerRef.current?.scrollTo({x:width,animated:false}),0);}
@@ -189,7 +193,9 @@ export default function HomeScreen(){
 
   const feedHeader=<>
     <View style={styles.feedTop}><View style={styles.feedTopline}><View style={styles.feedPulse}/><Text style={styles.feedEyebrow}>CAMPUS FEED</Text></View><Text style={styles.feedHint} numberOfLines={1}>Recent moments from your people and events</Text></View>
-    <Pressable onPress={()=>setCreateKind('image')} style={({pressed})=>[styles.quickPost,pressed&&styles.pressed]}><Avatar person={currentUser} size={42}/><Text style={styles.quickPostText}>Share what’s happening…</Text><View style={styles.quickPostButton}><Ionicons name="camera" color={colors.white} size={17}/></View></Pressable>
+    <View style={styles.feedModes} accessibilityRole="tablist">
+      {feedModes.map((item)=><Pressable key={item} accessibilityRole="tab" accessibilityState={{selected:feedMode===item}} onPress={()=>{setFeedMode(item);setCommentPostId(undefined);Haptics.selectionAsync().catch(()=>{});}} style={({pressed})=>[styles.feedMode,feedMode===item&&styles.feedModeActive,pressed&&styles.pressed]}><Text style={[styles.feedModeText,feedMode===item&&styles.feedModeTextActive]}>{item}</Text></Pressable>)}
+    </View>
     <View style={styles.feedDivider}/>
   </>;
   const renderFeedPost=useCallback(({item:post}:{item:FeedPost})=><FeedPostCard post={post} people={people} events={events} currentUserId={currentUser.id} pauseToken={videoPauseToken} commentsExpanded={commentPostId===post.id} onReact={(reaction)=>onReaction(post,reaction)} onToggleComments={()=>setCommentPostId((current)=>current===post.id?undefined:post.id)} onAddComment={(body)=>onComment(post,body)} onDeleteComment={onCommentDelete} onCommentInputFocus={keepCommentVisible} onViewed={()=>markPostViewed(post.id)} onRemoveTag={()=>removeMyTag(post.id)} onDelete={()=>Alert.alert('Delete post?','This removes the post for everyone.',[{text:'Cancel',style:'cancel'},{text:'Delete',style:'destructive',onPress:()=>removePost(post.id)}])} onReport={()=>showReportSheet({type:'post',id:post.id},report)}/>,[commentPostId,currentUser.id,events,keepCommentVisible,markPostViewed,onComment,onCommentDelete,onReaction,people,removeMyTag,removePost,report,videoPauseToken]);
@@ -203,7 +209,7 @@ export default function HomeScreen(){
     contentContainerStyle={[styles.feed,{width},feedRestoreMinHeight?{minHeight:feedRestoreMinHeight}:null]}
     refreshControl={<RefreshControl refreshing={syncing} onRefresh={refreshFeed} tintColor={colors.accent2}/>}
     onScrollBeginDrag={()=>setVideoPauseToken((n)=>n+1)}
-    data={rankedPosts}
+    data={visiblePosts}
     extraData={commentPostId}
     keyExtractor={(post)=>post.id}
     renderItem={renderFeedPost}
@@ -211,7 +217,7 @@ export default function HomeScreen(){
     keyboardShouldPersistTaps="handled"
     keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'}
     ListHeaderComponent={feedHeader}
-    ListEmptyComponent={<View style={styles.feedEmpty}><View style={styles.emptyIcon}><Ionicons name="images-outline" color={colors.accent2} size={24}/></View><Text style={styles.emptyTitle}>Nothing here yet.</Text><Text style={styles.emptyBody}>Be the first to show what’s happening.</Text><Pressable onPress={()=>setCreateKind('image')} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Post something</Text><Ionicons name="arrow-forward" color={colors.white} size={14}/></Pressable></View>}
+    ListEmptyComponent={<View style={styles.feedEmpty}><View style={styles.emptyIcon}><Ionicons name={feedMode==='Friends'?'people-outline':'images-outline'} color={colors.accent2} size={24}/></View><Text style={styles.emptyTitle}>{feedMode==='Friends'?'No friend posts yet.':'Nothing here yet.'}</Text><Text style={styles.emptyBody}>{feedMode==='Friends'?'Posts from your confirmed friends will appear here.':'Be the first to show what’s happening.'}</Text><Pressable onPress={()=>router.push('/(tabs)/create')} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Create something</Text><Ionicons name="arrow-forward" color={colors.white} size={14}/></Pressable></View>}
     ListFooterComponent={hasMoreFeed?<Pressable onPress={()=>loadMoreFeed()} style={styles.loadMore}><Text style={styles.loadMoreText}>Load more</Text><Ionicons name="chevron-down" color={colors.muted} size={14}/></Pressable>:null}
     initialNumToRender={3}
     maxToRenderPerBatch={3}
@@ -238,8 +244,6 @@ export default function HomeScreen(){
       onMomentumScrollEnd={(e)=>setMode(homeModes[Math.max(0,Math.min(homeModes.length-1,Math.round(e.nativeEvent.contentOffset.x/width)))])}
       style={styles.pager}
     >{discoverPage}{feedPage}{pastPage}</Animated.ScrollView>
-
-    <CreatePostModal visible={Boolean(createKind)} initialKind={createKind??'image'} events={events} people={people} currentUserId={currentUser.id} onClose={()=>setCreateKind(undefined)} onPost={createPost}/>
   </SafeAreaView>;
 }
 
@@ -247,5 +251,5 @@ const styles=StyleSheet.create({
   safe:{flex:1,backgroundColor:colors.bg},pager:{flex:1},header:{height:50,paddingHorizontal:14,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},headerActions:{flexDirection:'row',alignItems:'center',gap:2},headerButton:{width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center'},notificationBadge:{position:'absolute',right:0,top:0,minWidth:15,height:15,borderRadius:8,backgroundColor:colors.accent2,alignItems:'center',justifyContent:'center',paddingHorizontal:3,borderWidth:2,borderColor:colors.bg},notificationBadgeText:{color:colors.white,fontSize:7,fontWeight:'900'},pressed:{opacity:.72,transform:[{scale:.97}]},
   modeShell:{alignItems:'center',paddingTop:0,paddingBottom:7,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:colors.line},modeRow:{width:TAB_WIDTH*3+6,height:50,flexDirection:'row',position:'relative',padding:3,borderRadius:25,backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},modeItem:{width:TAB_WIDTH,height:44,alignItems:'center',justifyContent:'center',zIndex:1},modeText:{color:colors.muted,fontSize:13,fontWeight:'800',letterSpacing:.1},modeTextActive:{color:colors.text,fontWeight:'900'},modeRule:{position:'absolute',left:3,bottom:3,width:TAB_WIDTH,height:44,borderRadius:22,backgroundColor:colors.surface3,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.10)'},
   discover:{paddingHorizontal:16,paddingTop:0,paddingBottom:120},past:{paddingHorizontal:16,paddingTop:0,paddingBottom:120},error:{flexDirection:'row',alignItems:'center',gap:7,backgroundColor:colors.surface2,borderRadius:16,padding:12,marginTop:10,marginBottom:2,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},errorText:{color:colors.warning,fontSize:10.5,flex:1},discoverModes:{height:52,flexDirection:'row',padding:4,borderRadius:24,backgroundColor:colors.surface,marginTop:13,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},discoverMode:{flex:1,minHeight:44,borderRadius:20,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:7},discoverModeActive:{backgroundColor:colors.surface3,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.10)'},discoverModeText:{color:colors.muted,fontSize:11.5,fontWeight:'800'},discoverModeTextActive:{color:colors.text,fontWeight:'900'},discoverModeCount:{minWidth:19,height:19,borderRadius:10,backgroundColor:colors.accentSoft,alignItems:'center',justifyContent:'center',paddingHorizontal:5},discoverModeCountText:{color:colors.accent2,fontSize:8.5,fontWeight:'900'},filters:{gap:8,paddingVertical:13,paddingRight:10},filter:{height:36,borderRadius:18,paddingHorizontal:12,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line,flexDirection:'row',gap:6},filterActive:{backgroundColor:colors.accentSoft,borderColor:'rgba(139,150,255,.42)'},filterText:{color:colors.muted,fontSize:11,fontWeight:'800'},filterTextActive:{color:colors.text,fontWeight:'900'},featuredSection:{marginTop:4},highlights:{marginTop:4},section:{marginTop:32},sectionHead:{minHeight:46,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:3,marginBottom:13},sectionKicker:{color:colors.accent2,fontSize:9.5,fontWeight:'900',letterSpacing:1.1,marginBottom:3},sectionTitle:{color:colors.text,fontSize:20,fontWeight:'900',letterSpacing:-.4},sectionIntro:{color:colors.muted,fontSize:11.5,lineHeight:17,marginTop:-6,marginBottom:13,paddingHorizontal:3},sectionAction:{height:34,borderRadius:17,paddingHorizontal:11,flexDirection:'row',alignItems:'center',gap:6,backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},sectionActionText:{color:colors.muted,fontSize:10.5,fontWeight:'800'},sectionCount:{minWidth:30,height:30,borderRadius:15,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface},sectionCountText:{color:colors.muted,fontSize:11,fontWeight:'800'},archiveHead:{padding:18,borderRadius:26,backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line,marginTop:4},archiveIcon:{width:46,height:46,borderRadius:20,backgroundColor:colors.accentSoft,alignItems:'center',justifyContent:'center',marginBottom:15},archiveTitle:{color:colors.text,fontSize:25,lineHeight:29,fontWeight:'900',letterSpacing:-.6,marginTop:5},archiveBody:{color:colors.muted,fontSize:12,lineHeight:18,marginTop:7},archiveList:{marginTop:14},empty:{padding:24,borderRadius:24,backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line,alignItems:'flex-start'},emptyIcon:{width:48,height:48,borderRadius:24,backgroundColor:colors.accentSoft,alignItems:'center',justifyContent:'center',marginBottom:12},emptyTitle:{color:colors.text,fontSize:17,fontWeight:'900'},emptyBody:{color:colors.muted,fontSize:11.5,lineHeight:17,marginTop:5},emptyButton:{height:38,borderRadius:19,backgroundColor:colors.accent,paddingHorizontal:13,flexDirection:'row',alignItems:'center',gap:7,marginTop:14},emptyButtonText:{color:colors.white,fontSize:10,fontWeight:'900'},
-  feed:{paddingBottom:120},feedTop:{paddingHorizontal:16,paddingTop:12,paddingBottom:9,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},feedTopline:{flexDirection:'row',alignItems:'center',gap:6},feedPulse:{width:6,height:6,borderRadius:3,backgroundColor:colors.accent2},feedEyebrow:{color:colors.text,fontSize:10.5,fontWeight:'900',letterSpacing:.9},feedHint:{flex:1,color:colors.subtle,fontSize:10,fontWeight:'700',textAlign:'right',marginLeft:10},quickPost:{marginHorizontal:14,marginBottom:12,minHeight:60,borderRadius:21,backgroundColor:colors.surface,paddingHorizontal:11,flexDirection:'row',alignItems:'center',borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},quickPostText:{flex:1,color:colors.muted,fontSize:12,marginLeft:10},quickPostButton:{width:36,height:36,borderRadius:18,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center'},feedDivider:{height:StyleSheet.hairlineWidth,backgroundColor:colors.line,marginHorizontal:16,marginBottom:1},feedEmpty:{alignItems:'center',paddingTop:78,paddingHorizontal:32},loadMore:{alignSelf:'center',height:38,borderRadius:19,backgroundColor:colors.surface2,paddingHorizontal:14,flexDirection:'row',alignItems:'center',gap:6,marginTop:14},loadMoreText:{color:colors.muted,fontSize:9.5,fontWeight:'800'},
+  feed:{paddingBottom:120},feedTop:{paddingHorizontal:16,paddingTop:12,paddingBottom:9,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},feedTopline:{flexDirection:'row',alignItems:'center',gap:6},feedPulse:{width:6,height:6,borderRadius:3,backgroundColor:colors.accent2},feedEyebrow:{color:colors.text,fontSize:10.5,fontWeight:'900',letterSpacing:.9},feedHint:{flex:1,color:colors.subtle,fontSize:10,fontWeight:'700',textAlign:'right',marginLeft:10},feedModes:{height:52,flexDirection:'row',padding:4,borderRadius:24,backgroundColor:colors.surface,marginHorizontal:14,marginBottom:12,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},feedMode:{flex:1,minHeight:44,borderRadius:20,alignItems:'center',justifyContent:'center'},feedModeActive:{backgroundColor:colors.surface3,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.10)'},feedModeText:{color:colors.muted,fontSize:12,fontWeight:'800'},feedModeTextActive:{color:colors.text,fontWeight:'900'},feedDivider:{height:StyleSheet.hairlineWidth,backgroundColor:colors.line,marginHorizontal:16,marginBottom:1},feedEmpty:{alignItems:'center',paddingTop:78,paddingHorizontal:32},loadMore:{alignSelf:'center',height:38,borderRadius:19,backgroundColor:colors.surface2,paddingHorizontal:14,flexDirection:'row',alignItems:'center',gap:6,marginTop:14},loadMoreText:{color:colors.muted,fontSize:9.5,fontWeight:'800'},
 });
