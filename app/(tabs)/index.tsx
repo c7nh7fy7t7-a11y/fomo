@@ -11,7 +11,7 @@ import { EventCard, FeaturedEvent } from '@/components/EventCard';
 import { FeedPostCard } from '@/components/FeedPostCard';
 import { CreatePostModal } from '@/components/CreatePostModal';
 import { BrandWordmark } from '@/components/BrandWordmark';
-import { FeedMediaType, FeedPost, ReactionKind } from '@/data/seed';
+import { FeedMediaType, FeedPost, FomoEvent, ReactionKind } from '@/data/seed';
 import { friendlyErrorMessage } from '@/utils/errors';
 import { showReportSheet } from '@/utils/reporting';
 import { backendConfigured, supabase } from '@/lib/supabase';
@@ -20,9 +20,27 @@ const filters = ['All','Social','Study','Clubs','Sports','Campus'] as const;
 const filterIcon: Record<(typeof filters)[number], keyof typeof Ionicons.glyphMap> = {
   All:'sparkles-outline',Social:'people-outline',Study:'book-outline',Clubs:'megaphone-outline',Sports:'football-outline',Campus:'school-outline',
 };
-const TAB_WIDTH=112;
+const homeModes=['Discover','Feed','Past'] as const;
+type HomeMode=(typeof homeModes)[number];
+const discoverModes=['Upcoming','Past Highlights'] as const;
+type DiscoverMode=(typeof discoverModes)[number];
+const TAB_WIDTH=96;
 let savedDiscoverY=0;
 let savedFeedY=0;
+let savedPastY=0;
+
+function eventDayEnd(event:FomoEvent){
+  const parts=event.eventDate.split('-').map(Number);
+  if(parts.length!==3||parts.some((part)=>!Number.isFinite(part)))return Number.POSITIVE_INFINITY;
+  const [year,month,day]=parts;
+  return new Date(year,month-1,day+1).getTime();
+}
+function pastArchiveTime(event:FomoEvent){
+  const parts=event.eventDate.split('-').map(Number);
+  if(parts.length!==3||parts.some((part)=>!Number.isFinite(part)))return Number.POSITIVE_INFINITY;
+  const [year,month,day]=parts;
+  return new Date(year,month-1,day+5).getTime();
+}
 
 export default function HomeScreen(){
   const router=useRouter(); const params=useLocalSearchParams<{view?:string;posted?:string}>();
@@ -40,7 +58,8 @@ export default function HomeScreen(){
     currentUser,events,people,followingIds,friendIds,posts,interests,unreadNotificationCount,refreshAll,refreshFeed,syncing,syncError,demoMode,
     createPost,reactToPost,addComment,removeComment,markPostViewed,removeMyTag,removePost,report,loadMoreFeed,hasMoreFeed,
   }=useApp();
-  const [mode,setMode]=useState<'Discover'|'Feed'>('Discover');
+  const [mode,setMode]=useState<HomeMode>('Discover');
+  const [discoverMode,setDiscoverMode]=useState<DiscoverMode>('Upcoming');
   const [filter,setFilter]=useState<(typeof filters)[number]>('All');
   const [createKind,setCreateKind]=useState<FeedMediaType>();
   const [commentPostId,setCommentPostId]=useState<string>();
@@ -63,28 +82,34 @@ export default function HomeScreen(){
     return()=>{client.removeChannel(channel);};
   },[commentPostId,demoMode,refreshFeed]);
 
-  const visibleEvents=useMemo(()=>{
-    if(filter==='All')return events;
-    if(filter==='Sports')return events.filter((e)=>e.category==='Sports & Rec');
-    if(filter==='Campus')return events.filter((e)=>e.category==='Campus Event');
-    return events.filter((e)=>e.category===filter);
+  const {upcomingEvents,recentPastEvents,archivedEvents}=useMemo(()=>{
+    const referenceTime=Date.now();
+    const filtered=filter==='All'?events:filter==='Sports'?events.filter((event)=>event.category==='Sports & Rec'):filter==='Campus'?events.filter((event)=>event.category==='Campus Event'):events.filter((event)=>event.category===filter);
+    const upcoming:FomoEvent[]=[]; const recent:FomoEvent[]=[]; const archived:FomoEvent[]=[];
+    filtered.forEach((event)=>{
+      if(referenceTime<eventDayEnd(event))upcoming.push(event);
+      else if(referenceTime<pastArchiveTime(event))recent.push(event);
+      else archived.push(event);
+    });
+    const newestFirst=(a:FomoEvent,b:FomoEvent)=>eventDayEnd(b)-eventDayEnd(a);
+    return {upcomingEvents:upcoming,recentPastEvents:recent.sort(newestFirst),archivedEvents:archived.sort(newestFirst)};
   },[events,filter]);
-  const friendEvents=visibleEvents.filter((e)=>e.attendeeIds.some((id)=>friendIds.includes(id)));
-  const interestMatches=visibleEvents.filter((e)=>{const c=e.category.toLowerCase();return interests.some((i)=>i==='parties'?/(social|party)/.test(c):i==='sports'?/sport/.test(c):i==='clubs'?/club/.test(c):i==='study'?/study/.test(c):i==='campus'?/campus/.test(c):i==='music'?/music/.test(c):i==='social'?/social/.test(c):i==='gaming'?/gaming|game/.test(c):false);});
+  const friendEvents=upcomingEvents.filter((e)=>e.attendeeIds.some((id)=>friendIds.includes(id)));
+  const interestMatches=upcomingEvents.filter((e)=>{const c=e.category.toLowerCase();return interests.some((i)=>i==='parties'?/(social|party)/.test(c):i==='sports'?/sport/.test(c):i==='clubs'?/club/.test(c):i==='study'?/study/.test(c):i==='campus'?/campus/.test(c):i==='music'?/music/.test(c):i==='social'?/social/.test(c):i==='gaming'?/gaming|game/.test(c):false);});
   const now=new Date(); const today=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
-  const thisWeek=visibleEvents.filter((e)=>{const d=new Date(`${e.eventDate}T12:00:00`).getTime();return d>=today&&d<=today+7*86400000;});
-  const featured=friendEvents[0]??visibleEvents.find((e)=>e.trending)??visibleEvents[0];
-  const rest=visibleEvents.filter((e)=>e.id!==featured?.id);
+  const thisWeek=upcomingEvents.filter((e)=>{const d=new Date(`${e.eventDate}T12:00:00`).getTime();return d>=today&&d<=today+7*86400000;});
+  const featured=friendEvents[0]??upcomingEvents.find((e)=>e.trending)??upcomingEvents[0];
+  const rest=upcomingEvents.filter((e)=>e.id!==featured?.id);
   const curatedPicks=[...friendEvents,...interestMatches,...thisWeek]
     .filter((event,index,all)=>event.id!==featured?.id&&all.findIndex((candidate)=>candidate.id===event.id)===index)
     .slice(0,2);
   const highlightedIds=new Set(curatedPicks.map((event)=>event.id));
   const exploreEvents=rest.filter((event)=>!highlightedIds.has(event.id));
-  const indicatorX=scrollX.interpolate({inputRange:[0,width],outputRange:[0,TAB_WIDTH],extrapolate:'clamp'});
+  const indicatorX=scrollX.interpolate({inputRange:[0,width,width*2],outputRange:[0,TAB_WIDTH,TAB_WIDTH*2],extrapolate:'clamp'});
 
-  const switchMode=(next:'Discover'|'Feed')=>{
+  const switchMode=(next:HomeMode)=>{
     setMode(next); Haptics.selectionAsync().catch(()=>{});
-    pagerRef.current?.scrollTo({x:next==='Discover'?0:width,animated:true});
+    pagerRef.current?.scrollTo({x:homeModes.indexOf(next)*width,animated:true});
   };
   const onReaction=useCallback(async(post:FeedPost,reaction?:ReactionKind)=>{try{await reactToPost(post.id,reaction);}catch(error:any){Alert.alert('Couldn’t react',friendlyErrorMessage(error,'Try again.'));}},[reactToPost]);
   const onComment=useCallback(async(post:FeedPost,body:string)=>{try{await addComment(post.id,body);}catch(error:any){Alert.alert('Couldn’t comment',friendlyErrorMessage(error,'Try again.'));throw error;}},[addComment]);
@@ -118,6 +143,9 @@ export default function HomeScreen(){
     }
     savedFeedY=y;
   };
+  const categoryFilters=<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+    {filters.map((item)=><Pressable key={item} onPress={()=>{setFilter(item);Haptics.selectionAsync().catch(()=>{});}} style={({pressed})=>[styles.filter,filter===item&&styles.filterActive,pressed&&styles.pressed]}><Ionicons name={filterIcon[item]} color={filter===item?colors.white:colors.muted} size={14}/><Text style={[styles.filterText,filter===item&&styles.filterTextActive]}>{item}</Text></Pressable>)}
+  </ScrollView>;
 
   const discoverPage=<ScrollView
     style={{width}}
@@ -128,13 +156,35 @@ export default function HomeScreen(){
     refreshControl={<RefreshControl refreshing={syncing} onRefresh={refreshAll} tintColor={colors.accent2}/>}
   >
     {syncError?<View style={styles.error}><Ionicons name="cloud-offline-outline" color={colors.warning} size={16}/><Text style={styles.errorText}>{syncError}</Text></View>:null}
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-      {filters.map((item)=><Pressable key={item} onPress={()=>{setFilter(item);Haptics.selectionAsync().catch(()=>{});}} style={({pressed})=>[styles.filter,filter===item&&styles.filterActive,pressed&&styles.pressed]}><Ionicons name={filterIcon[item]} color={filter===item?colors.white:colors.muted} size={14}/><Text style={[styles.filterText,filter===item&&styles.filterTextActive]}>{item}</Text></Pressable>)}
-    </ScrollView>
+    <View style={styles.discoverModes}>
+      {discoverModes.map((item)=><Pressable key={item} accessibilityRole="tab" accessibilityState={{selected:discoverMode===item}} onPress={()=>{setDiscoverMode(item);Haptics.selectionAsync().catch(()=>{});}} style={({pressed})=>[styles.discoverMode,discoverMode===item&&styles.discoverModeActive,pressed&&styles.pressed]}><Text style={[styles.discoverModeText,discoverMode===item&&styles.discoverModeTextActive]}>{item}</Text>{item==='Past Highlights'&&recentPastEvents.length?<View style={styles.discoverModeCount}><Text style={styles.discoverModeCountText}>{recentPastEvents.length}</Text></View>:null}</Pressable>)}
+    </View>
+    {categoryFilters}
 
-    {featured?<View style={styles.featuredSection}><View style={styles.sectionHead}><View><Text style={styles.sectionKicker}>RECOMMENDED</Text><Text style={styles.sectionTitle}>Up next</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Open event map" onPress={()=>router.push('/(tabs)/map')} style={({pressed})=>[styles.sectionAction,pressed&&styles.pressed]}><Ionicons name="map-outline" color={colors.muted} size={14}/><Text style={styles.sectionActionText}>Map</Text></Pressable></View><FeaturedEvent event={featured} people={people} friendIds={friendIds}/></View>:null}
-    {curatedPicks.length?<View style={styles.section}><View style={styles.sectionHead}><View><Text style={styles.sectionKicker}>HANDPICKED</Text><Text style={styles.sectionTitle}>More for you</Text></View></View>{curatedPicks.map((event)=><EventCard key={`curated-${event.id}`} compact event={event} people={people} friendIds={friendIds}/>)}</View>:null}
-    {exploreEvents.length||!visibleEvents.length?<View style={styles.section}><View style={styles.sectionHead}><View><Text style={styles.sectionKicker}>EXPLORE</Text><Text style={styles.sectionTitle}>Around campus</Text></View>{exploreEvents.length?<View style={styles.sectionCount}><Text style={styles.sectionCountText}>{exploreEvents.length}</Text></View>:null}</View>{exploreEvents.length?exploreEvents.map((event)=><EventCard key={event.id} compact event={event} people={people} friendIds={friendIds}/>):<View style={styles.empty}><View style={styles.emptyIcon}><Ionicons name="moon-outline" color={colors.accent2} size={22}/></View><Text style={styles.emptyTitle}>Quiet right now.</Text><Text style={styles.emptyBody}>Be the person who puts something on.</Text><Pressable onPress={()=>router.push('/(tabs)/create')} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Create something</Text><Ionicons name="arrow-forward" color={colors.white} size={14}/></Pressable></View>}</View>:null}
+    {discoverMode==='Upcoming'?<>
+      {featured?<View style={styles.featuredSection}><View style={styles.sectionHead}><View><Text style={styles.sectionKicker}>RECOMMENDED</Text><Text style={styles.sectionTitle}>Up next</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Open event map" onPress={()=>router.push('/(tabs)/map')} style={({pressed})=>[styles.sectionAction,pressed&&styles.pressed]}><Ionicons name="map-outline" color={colors.muted} size={14}/><Text style={styles.sectionActionText}>Map</Text></Pressable></View><FeaturedEvent event={featured} people={people} friendIds={friendIds}/></View>:null}
+      {curatedPicks.length?<View style={styles.section}><View style={styles.sectionHead}><View><Text style={styles.sectionKicker}>HANDPICKED</Text><Text style={styles.sectionTitle}>More for you</Text></View></View>{curatedPicks.map((event)=><EventCard key={`curated-${event.id}`} compact event={event} people={people} friendIds={friendIds}/>)}</View>:null}
+      {exploreEvents.length||!upcomingEvents.length?<View style={styles.section}><View style={styles.sectionHead}><View><Text style={styles.sectionKicker}>EXPLORE</Text><Text style={styles.sectionTitle}>Around campus</Text></View>{exploreEvents.length?<View style={styles.sectionCount}><Text style={styles.sectionCountText}>{exploreEvents.length}</Text></View>:null}</View>{exploreEvents.length?exploreEvents.map((event)=><EventCard key={event.id} compact event={event} people={people} friendIds={friendIds}/>):<View style={styles.empty}><View style={styles.emptyIcon}><Ionicons name="moon-outline" color={colors.accent2} size={22}/></View><Text style={styles.emptyTitle}>Quiet right now.</Text><Text style={styles.emptyBody}>Be the person who puts something on.</Text><Pressable onPress={()=>router.push('/(tabs)/create')} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Create something</Text><Ionicons name="arrow-forward" color={colors.white} size={14}/></Pressable></View>}</View>:null}
+    </>:recentPastEvents.length?<View style={styles.highlights}><View style={styles.sectionHead}><View><Text style={styles.sectionKicker}>ENDED RECENTLY</Text><Text style={styles.sectionTitle}>Past highlights</Text></View><View style={styles.sectionCount}><Text style={styles.sectionCountText}>{recentPastEvents.length}</Text></View></View><Text style={styles.sectionIntro}>Events stay here for four days so campus can catch the photos and moments.</Text>{recentPastEvents.map((event)=><EventCard key={`recent-${event.id}`} compact event={event} people={people} friendIds={friendIds}/>)}</View>:<View style={styles.empty}><View style={styles.emptyIcon}><Ionicons name="sparkles-outline" color={colors.accent2} size={22}/></View><Text style={styles.emptyTitle}>No recent highlights.</Text><Text style={styles.emptyBody}>Events that ended in the last four days will appear here.</Text></View>}
+  </ScrollView>;
+
+  const pastPage=<ScrollView
+    style={{width}}
+    showsVerticalScrollIndicator={false}
+    contentOffset={{x:0,y:savedPastY}}
+    onScroll={(e)=>{savedPastY=e.nativeEvent.contentOffset.y;}} scrollEventThrottle={32}
+    contentContainerStyle={[styles.past,{width}]}
+    refreshControl={<RefreshControl refreshing={syncing} onRefresh={refreshAll} tintColor={colors.accent2}/>}
+  >
+    {syncError?<View style={styles.error}><Ionicons name="cloud-offline-outline" color={colors.warning} size={16}/><Text style={styles.errorText}>{syncError}</Text></View>:null}
+    {categoryFilters}
+    <View style={styles.archiveHead}>
+      <View style={styles.archiveIcon}><Ionicons name="archive-outline" color={colors.accent2} size={23}/></View>
+      <Text style={styles.sectionKicker}>EVENT ARCHIVE</Text>
+      <Text style={styles.archiveTitle}>Past events</Text>
+      <Text style={styles.archiveBody}>Events move here four days after they end. Open one anytime to revisit its details and moments.</Text>
+    </View>
+    {archivedEvents.length?<View style={styles.archiveList}>{archivedEvents.map((event)=><EventCard key={`archived-${event.id}`} compact event={event} people={people} friendIds={friendIds}/>)}</View>:<View style={styles.empty}><View style={styles.emptyIcon}><Ionicons name="time-outline" color={colors.accent2} size={22}/></View><Text style={styles.emptyTitle}>No past events yet.</Text><Text style={styles.emptyBody}>{filter==='All'?'Older events will collect here automatically.':'No archived events match this category.'}</Text></View>}
   </ScrollView>;
 
   const feedHeader=<>
@@ -175,7 +225,7 @@ export default function HomeScreen(){
 
     <View style={styles.modeShell}>
       <View style={styles.modeRow}>
-        {(['Discover','Feed'] as const).map((item)=><Pressable key={item} onPress={()=>switchMode(item)} style={styles.modeItem}><Text style={[styles.modeText,mode===item&&styles.modeTextActive]}>{item}</Text></Pressable>)}
+        {homeModes.map((item)=><Pressable key={item} onPress={()=>switchMode(item)} style={styles.modeItem}><Text style={[styles.modeText,mode===item&&styles.modeTextActive]}>{item}</Text></Pressable>)}
         <Animated.View style={[styles.modeRule,{transform:[{translateX:indicatorX}]}]}/>
       </View>
     </View>
@@ -185,9 +235,9 @@ export default function HomeScreen(){
       horizontal pagingEnabled directionalLockEnabled nestedScrollEnabled bounces={false}
       showsHorizontalScrollIndicator={false} scrollEventThrottle={16}
       onScroll={Animated.event([{nativeEvent:{contentOffset:{x:scrollX}}}],{useNativeDriver:true})}
-      onMomentumScrollEnd={(e)=>setMode(e.nativeEvent.contentOffset.x>=width/2?'Feed':'Discover')}
+      onMomentumScrollEnd={(e)=>setMode(homeModes[Math.max(0,Math.min(homeModes.length-1,Math.round(e.nativeEvent.contentOffset.x/width)))])}
       style={styles.pager}
-    >{discoverPage}{feedPage}</Animated.ScrollView>
+    >{discoverPage}{feedPage}{pastPage}</Animated.ScrollView>
 
     <CreatePostModal visible={Boolean(createKind)} initialKind={createKind??'image'} events={events} people={people} currentUserId={currentUser.id} onClose={()=>setCreateKind(undefined)} onPost={createPost}/>
   </SafeAreaView>;
@@ -195,7 +245,7 @@ export default function HomeScreen(){
 
 const styles=StyleSheet.create({
   safe:{flex:1,backgroundColor:colors.bg},pager:{flex:1},header:{height:50,paddingHorizontal:14,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},headerActions:{flexDirection:'row',alignItems:'center',gap:2},headerButton:{width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center'},notificationBadge:{position:'absolute',right:0,top:0,minWidth:15,height:15,borderRadius:8,backgroundColor:colors.accent2,alignItems:'center',justifyContent:'center',paddingHorizontal:3,borderWidth:2,borderColor:colors.bg},notificationBadgeText:{color:colors.white,fontSize:7,fontWeight:'900'},pressed:{opacity:.72,transform:[{scale:.97}]},
-  modeShell:{alignItems:'center',paddingTop:0,paddingBottom:7,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:colors.line},modeRow:{width:TAB_WIDTH*2+6,height:38,flexDirection:'row',position:'relative',padding:3,borderRadius:20,backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},modeItem:{width:TAB_WIDTH,height:32,alignItems:'center',justifyContent:'center',zIndex:1},modeText:{color:colors.muted,fontSize:13.5,fontWeight:'800',letterSpacing:.1},modeTextActive:{color:colors.text,fontWeight:'900'},modeRule:{position:'absolute',left:3,bottom:3,width:TAB_WIDTH,height:32,borderRadius:16,backgroundColor:colors.surface3,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.10)'},
-  discover:{paddingHorizontal:16,paddingTop:0,paddingBottom:120},error:{flexDirection:'row',alignItems:'center',gap:7,backgroundColor:colors.surface2,borderRadius:16,padding:12,marginTop:10,marginBottom:2,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},errorText:{color:colors.warning,fontSize:10.5,flex:1},filters:{gap:8,paddingVertical:13,paddingRight:10},filter:{height:36,borderRadius:18,paddingHorizontal:12,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line,flexDirection:'row',gap:6},filterActive:{backgroundColor:colors.accentSoft,borderColor:'rgba(139,150,255,.42)'},filterText:{color:colors.muted,fontSize:11,fontWeight:'800'},filterTextActive:{color:colors.text,fontWeight:'900'},featuredSection:{marginTop:4},section:{marginTop:32},sectionHead:{minHeight:46,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:3,marginBottom:13},sectionKicker:{color:colors.accent2,fontSize:9.5,fontWeight:'900',letterSpacing:1.1,marginBottom:3},sectionTitle:{color:colors.text,fontSize:20,fontWeight:'900',letterSpacing:-.4},sectionAction:{height:34,borderRadius:17,paddingHorizontal:11,flexDirection:'row',alignItems:'center',gap:6,backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},sectionActionText:{color:colors.muted,fontSize:10.5,fontWeight:'800'},sectionCount:{minWidth:30,height:30,borderRadius:15,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface},sectionCountText:{color:colors.muted,fontSize:11,fontWeight:'800'},empty:{padding:24,borderRadius:24,backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line,alignItems:'flex-start'},emptyIcon:{width:48,height:48,borderRadius:24,backgroundColor:colors.accentSoft,alignItems:'center',justifyContent:'center',marginBottom:12},emptyTitle:{color:colors.text,fontSize:17,fontWeight:'900'},emptyBody:{color:colors.muted,fontSize:11.5,lineHeight:17,marginTop:5},emptyButton:{height:38,borderRadius:19,backgroundColor:colors.accent,paddingHorizontal:13,flexDirection:'row',alignItems:'center',gap:7,marginTop:14},emptyButtonText:{color:colors.white,fontSize:10,fontWeight:'900'},
+  modeShell:{alignItems:'center',paddingTop:0,paddingBottom:7,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:colors.line},modeRow:{width:TAB_WIDTH*3+6,height:50,flexDirection:'row',position:'relative',padding:3,borderRadius:25,backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},modeItem:{width:TAB_WIDTH,height:44,alignItems:'center',justifyContent:'center',zIndex:1},modeText:{color:colors.muted,fontSize:13,fontWeight:'800',letterSpacing:.1},modeTextActive:{color:colors.text,fontWeight:'900'},modeRule:{position:'absolute',left:3,bottom:3,width:TAB_WIDTH,height:44,borderRadius:22,backgroundColor:colors.surface3,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.10)'},
+  discover:{paddingHorizontal:16,paddingTop:0,paddingBottom:120},past:{paddingHorizontal:16,paddingTop:0,paddingBottom:120},error:{flexDirection:'row',alignItems:'center',gap:7,backgroundColor:colors.surface2,borderRadius:16,padding:12,marginTop:10,marginBottom:2,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},errorText:{color:colors.warning,fontSize:10.5,flex:1},discoverModes:{height:52,flexDirection:'row',padding:4,borderRadius:24,backgroundColor:colors.surface,marginTop:13,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},discoverMode:{flex:1,minHeight:44,borderRadius:20,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:7},discoverModeActive:{backgroundColor:colors.surface3,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.10)'},discoverModeText:{color:colors.muted,fontSize:11.5,fontWeight:'800'},discoverModeTextActive:{color:colors.text,fontWeight:'900'},discoverModeCount:{minWidth:19,height:19,borderRadius:10,backgroundColor:colors.accentSoft,alignItems:'center',justifyContent:'center',paddingHorizontal:5},discoverModeCountText:{color:colors.accent2,fontSize:8.5,fontWeight:'900'},filters:{gap:8,paddingVertical:13,paddingRight:10},filter:{height:36,borderRadius:18,paddingHorizontal:12,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line,flexDirection:'row',gap:6},filterActive:{backgroundColor:colors.accentSoft,borderColor:'rgba(139,150,255,.42)'},filterText:{color:colors.muted,fontSize:11,fontWeight:'800'},filterTextActive:{color:colors.text,fontWeight:'900'},featuredSection:{marginTop:4},highlights:{marginTop:4},section:{marginTop:32},sectionHead:{minHeight:46,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:3,marginBottom:13},sectionKicker:{color:colors.accent2,fontSize:9.5,fontWeight:'900',letterSpacing:1.1,marginBottom:3},sectionTitle:{color:colors.text,fontSize:20,fontWeight:'900',letterSpacing:-.4},sectionIntro:{color:colors.muted,fontSize:11.5,lineHeight:17,marginTop:-6,marginBottom:13,paddingHorizontal:3},sectionAction:{height:34,borderRadius:17,paddingHorizontal:11,flexDirection:'row',alignItems:'center',gap:6,backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},sectionActionText:{color:colors.muted,fontSize:10.5,fontWeight:'800'},sectionCount:{minWidth:30,height:30,borderRadius:15,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface},sectionCountText:{color:colors.muted,fontSize:11,fontWeight:'800'},archiveHead:{padding:18,borderRadius:26,backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line,marginTop:4},archiveIcon:{width:46,height:46,borderRadius:20,backgroundColor:colors.accentSoft,alignItems:'center',justifyContent:'center',marginBottom:15},archiveTitle:{color:colors.text,fontSize:25,lineHeight:29,fontWeight:'900',letterSpacing:-.6,marginTop:5},archiveBody:{color:colors.muted,fontSize:12,lineHeight:18,marginTop:7},archiveList:{marginTop:14},empty:{padding:24,borderRadius:24,backgroundColor:colors.surface,borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line,alignItems:'flex-start'},emptyIcon:{width:48,height:48,borderRadius:24,backgroundColor:colors.accentSoft,alignItems:'center',justifyContent:'center',marginBottom:12},emptyTitle:{color:colors.text,fontSize:17,fontWeight:'900'},emptyBody:{color:colors.muted,fontSize:11.5,lineHeight:17,marginTop:5},emptyButton:{height:38,borderRadius:19,backgroundColor:colors.accent,paddingHorizontal:13,flexDirection:'row',alignItems:'center',gap:7,marginTop:14},emptyButtonText:{color:colors.white,fontSize:10,fontWeight:'900'},
   feed:{paddingBottom:120},feedTop:{paddingHorizontal:16,paddingTop:12,paddingBottom:9,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},feedTopline:{flexDirection:'row',alignItems:'center',gap:6},feedPulse:{width:6,height:6,borderRadius:3,backgroundColor:colors.accent2},feedEyebrow:{color:colors.text,fontSize:10.5,fontWeight:'900',letterSpacing:.9},feedHint:{flex:1,color:colors.subtle,fontSize:10,fontWeight:'700',textAlign:'right',marginLeft:10},quickPost:{marginHorizontal:14,marginBottom:12,minHeight:60,borderRadius:21,backgroundColor:colors.surface,paddingHorizontal:11,flexDirection:'row',alignItems:'center',borderWidth:StyleSheet.hairlineWidth,borderColor:colors.line},quickPostText:{flex:1,color:colors.muted,fontSize:12,marginLeft:10},quickPostButton:{width:36,height:36,borderRadius:18,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center'},feedDivider:{height:StyleSheet.hairlineWidth,backgroundColor:colors.line,marginHorizontal:16,marginBottom:1},feedEmpty:{alignItems:'center',paddingTop:78,paddingHorizontal:32},loadMore:{alignSelf:'center',height:38,borderRadius:19,backgroundColor:colors.surface2,paddingHorizontal:14,flexDirection:'row',alignItems:'center',gap:6,marginTop:14},loadMoreText:{color:colors.muted,fontSize:9.5,fontWeight:'800'},
 });
