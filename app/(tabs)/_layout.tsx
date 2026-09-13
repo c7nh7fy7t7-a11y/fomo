@@ -111,7 +111,7 @@ const styles=StyleSheet.create({
   iconSlot:{width:46,height:35,alignItems:'center',justifyContent:'center'},
   iconHalo:{position:'absolute',width:43,height:32,borderRadius:16,backgroundColor:colors.accentSoft,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(139,150,255,.22)'},
   activeIndicator:{position:'absolute',bottom:0,width:14,height:2.5,borderRadius:2,backgroundColor:colors.accent2},
-  createStage:{width:60,height:52,alignItems:'center',justifyContent:'center'},
+  createStage:{width:60,height:52,alignItems:'center',justifyContent:'center',transform:[{translateY:3}]},
   createBurst:{position:'absolute',width:48,height:48,borderRadius:20,borderWidth:1.5,borderColor:colors.accent2},
   createButton:{width:52,height:52,borderRadius:21,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center',borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.34)',shadowColor:colors.accent,shadowOpacity:.44,shadowRadius:13,shadowOffset:{width:0,height:5},elevation:11},
   createButtonFocused:{backgroundColor:colors.accent2,shadowOpacity:.58},
