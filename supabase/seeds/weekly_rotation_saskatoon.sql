@@ -1,9 +1,9 @@
 -- Staged, idempotent Saskatoon Weekly Rotation catalog.
 --
 -- This file is intentionally separate from the schema migration. Run it only
--- after a trusted FOMO organizer profile has been provisioned and after a
--- human explicitly approves the target environment. It never creates an auth
--- user and refuses to assign curated events to a personal account.
+-- after the target environment has been explicitly approved. Ethan authorized
+-- his existing active @ethan profile to own these curated event occurrences.
+-- This file never creates an auth user or changes account permissions.
 
 do $seed$
 declare
@@ -13,22 +13,18 @@ declare
   v_series uuid;
   v_seed record;
 begin
-  select op.profile_id, op.university_id
+  select p.id, p.university_id
   into v_curator, v_university
-  from public.organizer_profiles op
-  join public.profile_verifications pv on pv.profile_id = op.profile_id
-  join public.profiles p on p.id = op.profile_id
-  where lower(op.handle) = 'fomo'
-    and pv.verification_type in ('founder', 'official')
+  from public.profiles p
+  where lower(p.username) = 'ethan'
     and p.account_status = 'active'
-  order by case pv.verification_type when 'official' then 0 else 1 end
   limit 1;
 
   if v_curator is null or v_university is null then
     raise exception using
       errcode = 'P0001',
       message = 'FOMO_CURATOR_PROFILE_REQUIRED',
-      detail = 'Provision a verified organizer profile with handle fomo before seeding Weekly Rotation.';
+      detail = 'An active profile with username ethan is required to own the Weekly Rotation catalog.';
   end if;
 
   for v_seed in

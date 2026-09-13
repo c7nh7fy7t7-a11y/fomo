@@ -1,8 +1,8 @@
 # Weekly Rotation acceptance test
 
 Use a non-production Supabase environment with the Weekly Rotation migration
-applied. Seed data only after a verified `fomo` organizer account exists and a
-human has approved that environment.
+applied. Seed data only after confirming the active `@ethan` owner profile and
+after a human has approved that environment.
 
 ## Setup
 
