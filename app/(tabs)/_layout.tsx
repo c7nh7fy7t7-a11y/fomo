@@ -44,7 +44,6 @@ function TabIcon({route,focused,color,size,reduceMotion}:{route:string;focused:b
     return <View style={styles.createStage}>
       <Animated.View pointerEvents="none" style={[styles.createBurst,{opacity:burstOpacity,transform:[{scale:burstScale}]}]}/>
       <Animated.View style={[styles.createButton,focused&&styles.createButtonFocused,{transform:[{translateY:buttonLift},{scale:buttonScale}]}]}>
-        <View pointerEvents="none" style={styles.createHighlight}/>
         <Ionicons name="add" color={colors.white} size={31}/>
       </Animated.View>
     </View>;
@@ -110,5 +109,4 @@ const styles=StyleSheet.create({
   createBurst:{position:'absolute',width:48,height:48,borderRadius:20,borderWidth:1.5,borderColor:colors.accent2},
   createButton:{width:52,height:52,borderRadius:21,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center',borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.34)',shadowColor:colors.accent,shadowOpacity:.44,shadowRadius:13,shadowOffset:{width:0,height:5},elevation:11},
   createButtonFocused:{backgroundColor:colors.accent2,shadowOpacity:.58},
-  createHighlight:{position:'absolute',left:10,right:10,top:5,height:1,borderRadius:1,backgroundColor:'rgba(255,255,255,.45)'},
 });
