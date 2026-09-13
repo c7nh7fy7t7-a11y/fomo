@@ -53,11 +53,9 @@ function TabIcon({route,focused,color,size,reduceMotion}:{route:string;focused:b
   const iconScale=focusProgress.interpolate({inputRange:[0,1],outputRange:[1,1.1]});
   const iconLift=focusProgress.interpolate({inputRange:[0,1],outputRange:[0,-1.5]});
   const haloScale=focusProgress.interpolate({inputRange:[0,1],outputRange:[.82,1]});
-  const indicatorScale=focusProgress.interpolate({inputRange:[0,1],outputRange:[.35,1]});
   return <View style={styles.iconSlot}>
     <Animated.View pointerEvents="none" style={[styles.iconHalo,{opacity:focusProgress,transform:[{scale:haloScale}]}]}/>
     <Animated.View style={{transform:[{translateY:iconLift},{scale:iconScale}]}}><Ionicons name={(focused?activeIcons[route]:inactiveIcons[route])??'ellipse-outline'} color={color} size={focused?size+1:size}/></Animated.View>
-    <Animated.View pointerEvents="none" style={[styles.activeIndicator,{opacity:focusProgress,transform:[{scaleX:indicatorScale}]}]}/>
   </View>;
 }
 
@@ -65,7 +63,6 @@ function TabBarBackground(){
   return <View pointerEvents="none" style={styles.barBackground}>
     <BlurView tint="systemUltraThinMaterialDark" intensity={78} style={StyleSheet.absoluteFill}/>
     <View style={styles.barTint}/>
-    <View style={styles.barTopLight}/>
   </View>;
 }
 
@@ -106,12 +103,10 @@ const styles=StyleSheet.create({
   bar:{position:'absolute',left:12,right:12,height:68,borderRadius:25,backgroundColor:'transparent',borderTopWidth:0,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.14)',paddingTop:4,paddingBottom:5,elevation:16,shadowColor:'#000',shadowOpacity:.4,shadowRadius:24,shadowOffset:{width:0,height:11}},
   barBackground:{position:'absolute',inset:0,borderRadius:25,overflow:'hidden',backgroundColor:'rgba(12,14,17,.76)'},
   barTint:{position:'absolute',inset:0,backgroundColor:'rgba(15,18,22,.52)'},
-  barTopLight:{position:'absolute',left:18,right:18,top:0,height:StyleSheet.hairlineWidth,backgroundColor:'rgba(255,255,255,.22)'},
   item:{paddingTop:1},label:{fontSize:9.5,fontWeight:'800',marginTop:-1,letterSpacing:.15},
   iconSlot:{width:46,height:35,alignItems:'center',justifyContent:'center'},
   iconHalo:{position:'absolute',width:43,height:32,borderRadius:16,backgroundColor:colors.accentSoft,borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(139,150,255,.22)'},
-  activeIndicator:{position:'absolute',bottom:0,width:14,height:2.5,borderRadius:2,backgroundColor:colors.accent2},
-  createStage:{width:60,height:52,alignItems:'center',justifyContent:'center',transform:[{translateY:3}]},
+  createStage:{width:60,height:52,alignItems:'center',justifyContent:'center',transform:[{translateY:8}]},
   createBurst:{position:'absolute',width:48,height:48,borderRadius:20,borderWidth:1.5,borderColor:colors.accent2},
   createButton:{width:52,height:52,borderRadius:21,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center',borderWidth:StyleSheet.hairlineWidth,borderColor:'rgba(255,255,255,.34)',shadowColor:colors.accent,shadowOpacity:.44,shadowRadius:13,shadowOffset:{width:0,height:5},elevation:11},
   createButtonFocused:{backgroundColor:colors.accent2,shadowOpacity:.58},
