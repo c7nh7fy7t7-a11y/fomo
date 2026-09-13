@@ -90,14 +90,14 @@ export function FeaturedEvent({ event, people, friendIds }: { event: FomoEvent; 
       <View style={styles.featuredShade} />
       <View style={styles.featuredTop}>
         <BlurView intensity={48} tint="systemUltraThinMaterialDark" style={styles.featuredChip}><View style={[styles.featuredDot, { backgroundColor: categoryColor(event.category) }]} /><Text style={styles.featuredChipText}>{event.recurrence?'WEEKLY · ':''}{event.category}</Text></BlurView>
-        <BlurView intensity={48} tint="systemUltraThinMaterialDark" style={styles.featuredMetaPill}><Text style={styles.featuredMeta}>{event.dateLabel} · {event.time}</Text></BlurView>
+        <BlurView intensity={48} tint="systemUltraThinMaterialDark" style={styles.featuredMetaPill}><Text style={styles.featuredMeta} numberOfLines={1}>{event.dateLabel} · {event.time}</Text></BlurView>
       </View>
       <View style={styles.featuredBottom}>
-        <Text style={styles.featuredTitle}>{event.title}</Text>
-        <Text style={styles.featuredLocation}><Ionicons name="location-outline" size={13} /> {event.location}</Text>
+        <Text style={styles.featuredTitle} numberOfLines={2}>{event.title}</Text>
+        <Text style={styles.featuredLocation} numberOfLines={1}><Ionicons name="location-outline" size={13} /> {event.location}</Text>
         <View style={styles.featuredSocial}>
           {friends.length ? <AvatarStack people={friends} size={29} max={4} /> : null}
-          <Text style={[styles.featuredSocialText, friends.length ? { marginLeft: 9 } : null]}>
+          <Text style={[styles.featuredSocialText, friends.length ? { marginLeft: 9 } : null]} numberOfLines={1}>
             {friends.length ? `${friends.length} friend${friends.length === 1 ? '' : 's'} going` : `${event.attendeeIds.length} going`}
           </Text>
           <View style={styles.viewEvent}><Text style={styles.viewEventText}>Open</Text><Ionicons name="arrow-forward" color={colors.black} size={13} /></View>
@@ -109,10 +109,10 @@ export function FeaturedEvent({ event, people, friendIds }: { event: FomoEvent; 
 
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: 26, overflow: 'hidden', marginBottom: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
-  compactCard: { minHeight: 124, flexDirection: 'row', alignItems: 'center', marginBottom: 13, padding: 8, borderRadius: 22, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  compactCard: { minHeight: 132, flexDirection: 'row', alignItems: 'center', marginBottom: 11, padding: 9, borderRadius: 24, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
   pressed: { opacity: 0.86, transform: [{ scale: 0.982 }] },
   imageWrap: { height: 166, backgroundColor: colors.surface2 },
-  compactImageWrap: { width: 106, height: 106, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.surface2 },
+  compactImageWrap: { width: 112, height: 112, borderRadius: 19, overflow: 'hidden', backgroundColor: colors.surface2 },
   image: { width: '100%', height: '100%' },
   fallback: { alignItems: 'center', justifyContent: 'center' },
   imageShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.12)' },
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   compactTime: { position: 'absolute', left: 7, bottom: 7, backgroundColor: 'rgba(5,5,5,.78)', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 4 },
   compactTimeText: { color: colors.white, fontSize: 7.5, fontWeight: '900', letterSpacing: .3 },
   copy: { padding: 14 },
-  compactCopy: { flex: 1, minWidth: 0, paddingHorizontal: 11, paddingVertical: 4 },
+  compactCopy: { flex: 1, minWidth: 0, paddingHorizontal: 12, paddingVertical: 5 },
   topline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   compactTopline: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   category: { fontSize: 9.5, fontWeight: '900' },
@@ -130,26 +130,26 @@ const styles = StyleSheet.create({
   locationLine: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
   compactLocation: { flex: 1, color: colors.muted, fontSize: 9.5 },
   title: { color: colors.text, fontSize: 19, lineHeight: 23, fontWeight: '900', letterSpacing: -0.45, marginTop: 5 },
-  compactTitle: { color: colors.text, fontSize: 15, lineHeight: 18, fontWeight: '900', letterSpacing: -.25, marginTop: 3 },
+  compactTitle: { color: colors.text, fontSize: 16, lineHeight: 20, fontWeight: '900', letterSpacing: -.3, marginTop: 4 },
   social: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
-  compactSocial: { flexDirection: 'row', alignItems: 'center', marginTop: 9 },
+  compactSocial: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
   socialWithAvatars: { marginLeft: 9 },
   socialText: { color: colors.muted, fontSize: 10, fontWeight: '700' },
   chevron: { marginLeft: 'auto' },
-  compactArrow: { width: 24, alignItems: 'center' },
-  featured: { height: 262, borderRadius: 26, overflow: 'hidden', marginBottom: 2, backgroundColor: colors.surface2, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
-  featuredShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.34)' },
-  featuredTop: { position: 'absolute', left: 14, right: 14, top: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  compactArrow: { width: 27, alignItems: 'center' },
+  featured: { height: 278, borderRadius: 30, overflow: 'hidden', backgroundColor: colors.surface2, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,.13)', shadowColor: '#000', shadowOpacity: .3, shadowRadius: 18, shadowOffset: { width: 0, height: 9 } },
+  featuredShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.38)' },
+  featuredTop: { position: 'absolute', left: 15, right: 15, top: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   featuredChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(9,9,11,.78)', borderRadius: 17, paddingHorizontal: 10, paddingVertical: 7, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,.14)' },
   featuredDot: { width: 6, height: 6, borderRadius: 3 },
   featuredChipText: { color: colors.white, fontSize: 9, fontWeight: '900' },
-  featuredMetaPill: { backgroundColor: 'rgba(9,9,11,.72)', borderRadius: 15, paddingHorizontal: 9, paddingVertical: 6 },
+  featuredMetaPill: { maxWidth: '64%', backgroundColor: 'rgba(9,9,11,.72)', borderRadius: 15, paddingHorizontal: 9, paddingVertical: 6 },
   featuredMeta: { color: colors.white, fontSize: 9.5, fontWeight: '800', textShadowColor: '#000', textShadowRadius: 8 },
-  featuredBottom: { position: 'absolute', left: 18, right: 18, bottom: 17 },
-  featuredTitle: { color: colors.white, fontSize: 25, lineHeight: 27, fontWeight: '900', letterSpacing: -.8 },
-  featuredLocation: { color: '#EEEEF0', fontSize: 10.5, fontWeight: '700', marginTop: 6 },
-  featuredSocial: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  featuredSocialText: { color: colors.white, fontSize: 10.5, fontWeight: '700' },
-  viewEvent: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.white, borderRadius: 15, paddingHorizontal: 10, paddingVertical: 7 },
+  featuredBottom: { position: 'absolute', left: 19, right: 19, bottom: 18 },
+  featuredTitle: { color: colors.white, fontSize: 28, lineHeight: 31, fontWeight: '900', letterSpacing: -.95 },
+  featuredLocation: { color: '#EEEEF0', fontSize: 11, fontWeight: '700', marginTop: 7 },
+  featuredSocial: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+  featuredSocialText: { flexShrink: 1, color: colors.white, fontSize: 10.5, fontWeight: '700' },
+  viewEvent: { minHeight: 38, marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.white, borderRadius: 19, paddingHorizontal: 12 },
   viewEventText: { color: colors.black, fontSize: 9, fontWeight: '900' },
 });
