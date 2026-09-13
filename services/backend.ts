@@ -1,4 +1,4 @@
-import { FomoEvent, InterestKey, NotificationPreferences, OrganizerProfile, Person, Privacy, VerificationType } from '@/data/seed';
+import { FomoEvent, InterestKey, NotificationPreferences, OrganizerProfile, Person, Privacy, RecurrenceVerificationStatus, VerificationType } from '@/data/seed';
 import { supabase } from '@/lib/supabase';
 import { signedUrlsFor } from '@/services/mediaCache';
 
@@ -28,6 +28,12 @@ type EventRow = {
   id: string; title: string; category: string; day: string; event_date: string; date_label: string; time_label: string;
   location_label: string; description: string | null; privacy: 'public' | 'request' | 'private'; cover_url: string | null;
   host_id: string; latitude: number; longitude: number; trending: boolean;
+  recurring_series_id?: string | null; occurrence_starts_at?: string | null; occurrence_ends_at?: string | null;
+};
+type RecurringSeriesRow = {
+  id:string; recurrence_type:'weekly'; day_of_week:number; start_time:string; end_time:string|null;
+  recurrence_start_date:string; recurrence_end_date:string|null; timezone:string; active:boolean;
+  is_curated:boolean; is_weekly_staple:boolean; sort_priority:number; verification_status:RecurrenceVerificationStatus; verified_at:string|null;
 };
 type EventLocationRow = {
   event_id: string; precise_address: string | null; precise_latitude: number | null; precise_longitude: number | null;
@@ -53,6 +59,51 @@ const privacyFromDb = (privacy: EventRow['privacy']): Privacy =>
 const privacyToDb = (privacy: Privacy) =>
   privacy === 'Public' ? 'public' : privacy === 'Request' ? 'request' : 'private';
 
+const eventSelect = 'id, title, category, day, event_date, date_label, time_label, location_label, description, privacy, cover_url, host_id, latitude, longitude, trending';
+const recurringEventSelect = `${eventSelect}, recurring_series_id, occurrence_starts_at, occurrence_ends_at`;
+
+function isMissingRecurringSchema(error:unknown){
+  const value=typeof error==='object'&&error!==null?error as Record<string,unknown>:{};
+  const code=typeof value.code==='string'?value.code.toUpperCase():'';
+  const message=typeof value.message==='string'?value.message.toLowerCase():'';
+  const namesRecurringObject=message.includes('recurring_event_series')
+    || message.includes('recurring_series_id')
+    || message.includes('refresh_weekly_event_occurrences');
+  const explicitlyMissing=message.includes('does not exist')
+    || message.includes('could not find')
+    || message.includes('schema cache');
+  return ['42P01','42703','42883','PGRST200','PGRST202','PGRST204'].includes(code)
+    || (namesRecurringObject&&explicitlyMissing);
+}
+
+async function loadEventRowsAndRecurrence(){
+  if(!supabase)throw new Error('Supabase is not configured.');
+
+  const refresh=await supabase.rpc('refresh_weekly_event_occurrences',{p_horizon_days:35});
+  if(refresh.error&&!isMissingRecurringSchema(refresh.error))throw refresh.error;
+
+  const extended=await supabase.from('events').select(recurringEventSelect).order('event_date',{ascending:true}).order('created_at',{ascending:false});
+  if(extended.error){
+    if(!isMissingRecurringSchema(extended.error))throw extended.error;
+    const legacy=await supabase.from('events').select(eventSelect).order('event_date',{ascending:true}).order('created_at',{ascending:false});
+    if(legacy.error)throw legacy.error;
+    return {eventRows:(legacy.data??[]) as EventRow[],seriesById:new Map<string,RecurringSeriesRow>()};
+  }
+
+  const eventRows=(extended.data??[]) as EventRow[];
+  const seriesIds=[...new Set(eventRows.map((event)=>event.recurring_series_id).filter(Boolean) as string[])];
+  if(!seriesIds.length)return {eventRows,seriesById:new Map<string,RecurringSeriesRow>()};
+
+  const series=await supabase.from('recurring_event_series')
+    .select('id, recurrence_type, day_of_week, start_time, end_time, recurrence_start_date, recurrence_end_date, timezone, active, is_curated, is_weekly_staple, sort_priority, verification_status, verified_at')
+    .in('id',seriesIds);
+  if(series.error){
+    if(isMissingRecurringSchema(series.error))return {eventRows,seriesById:new Map<string,RecurringSeriesRow>()};
+    throw series.error;
+  }
+  return {eventRows,seriesById:new Map<string,RecurringSeriesRow>(((series.data??[]) as RecurringSeriesRow[]).map((row)=>[row.id,row]))};
+}
+
 type EventCreateErrorCategory = 'authentication' | 'authorization' | 'conflict' | 'validation' | 'network' | 'server' | 'database' | 'unknown';
 
 const eventCreateErrorCategory = (error: unknown): EventCreateErrorCategory => {
@@ -74,9 +125,12 @@ const eventCreateErrorCategory = (error: unknown): EventCreateErrorCategory => {
 export async function loadBackendState(userId: string): Promise<BackendState> {
   if (!supabase) throw new Error('Supabase is not configured.');
 
-  const [profilesResult, eventsResult, locationsResult, attendeesResult, followsResult, photosResult, savedResult, cohostsResult, verificationsResult, organizersResult, interestsResult, blocksResult, prefsResult] = await Promise.all([
+  // Refresh recurring rows before reading dependent attendance/location data,
+  // so a newly generated occurrence is complete on its very first load.
+  const eventData = await loadEventRowsAndRecurrence();
+
+  const [profilesResult, locationsResult, attendeesResult, followsResult, photosResult, savedResult, cohostsResult, verificationsResult, organizersResult, interestsResult, blocksResult, prefsResult] = await Promise.all([
     supabase.from('profiles').select('id, full_name, username, graduation_year, program, avatar_url, bio').order('full_name'),
-    supabase.from('events').select('id, title, category, day, event_date, date_label, time_label, location_label, description, privacy, cover_url, host_id, latitude, longitude, trending').order('event_date', { ascending: true }).order('created_at', { ascending: false }),
     supabase.from('event_locations').select('event_id, precise_address, precise_latitude, precise_longitude'),
     supabase.from('event_attendees').select('event_id, user_id, status'),
     supabase.from('follows').select('follower_id, following_id, created_at').or(`follower_id.eq.${userId},following_id.eq.${userId}`),
@@ -89,7 +143,7 @@ export async function loadBackendState(userId: string): Promise<BackendState> {
     supabase.from('user_blocks').select('blocked_id').eq('blocker_id',userId),
     supabase.from('notification_preferences').select('messages, social, events, reminders').eq('user_id',userId).maybeSingle(),
   ]);
-  for (const result of [profilesResult, eventsResult, locationsResult, attendeesResult, followsResult, photosResult, savedResult, cohostsResult, verificationsResult, organizersResult, interestsResult, blocksResult, prefsResult]) {
+  for (const result of [profilesResult, locationsResult, attendeesResult, followsResult, photosResult, savedResult, cohostsResult, verificationsResult, organizersResult, interestsResult, blocksResult, prefsResult]) {
     if (result.error) throw result.error;
   }
 
@@ -103,7 +157,7 @@ export async function loadBackendState(userId: string): Promise<BackendState> {
   const followerSet = new Set(followerIds);
   const friendIds = followingIds.filter((id) => followerSet.has(id));
 
-  const eventRows = (eventsResult.data ?? []) as EventRow[];
+  const eventRows = eventData.eventRows;
   const cohostIdsByEvent = new Map<string, string[]>();
   const managedEventIds = new Set(eventRows.filter((event) => event.host_id === userId).map((event) => event.id));
   for (const row of cohostsResult.data ?? []) {
@@ -146,6 +200,7 @@ export async function loadBackendState(userId: string): Promise<BackendState> {
 
   const events: FomoEvent[] = eventRows.map((event) => {
     const exact = exactLocationMap.get(event.id);
+    const series=event.recurring_series_id?eventData.seriesById.get(event.recurring_series_id):undefined;
     return {
       id: event.id,
       title: event.title,
@@ -168,6 +223,14 @@ export async function loadBackendState(userId: string): Promise<BackendState> {
       exactLongitude: exact?.precise_longitude == null ? undefined : Number(exact.precise_longitude),
       photos: photosByEvent.get(event.id) ?? [],
       trending: Boolean(event.trending),
+      recurrence:series&&event.occurrence_starts_at?{
+        seriesId:series.id,type:series.recurrence_type,dayOfWeek:Number(series.day_of_week),startTime:series.start_time,
+        endTime:series.end_time||undefined,startDate:series.recurrence_start_date,endDate:series.recurrence_end_date||undefined,
+        timezone:series.timezone,active:Boolean(series.active),curated:Boolean(series.is_curated),weeklyStaple:Boolean(series.is_weekly_staple),
+        sortPriority:Number(series.sort_priority)||0,
+        verificationStatus:series.verification_status,verifiedAt:series.verified_at||undefined,
+        occurrenceStartsAt:event.occurrence_starts_at,occurrenceEndsAt:event.occurrence_ends_at||undefined,
+      }:undefined,
     };
   });
 

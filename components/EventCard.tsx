@@ -33,7 +33,7 @@ export function EventCard({ event, people, friendIds, compact = false }: { event
         </View>
         <View style={styles.compactCopy}>
           <View style={styles.compactTopline}>
-            <Text style={[styles.category, { color: accent }]}>{event.category}</Text>
+            <Text style={[styles.category, { color: accent }]}>{event.category}{event.recurrence?' · WEEKLY':''}</Text>
             <Text style={styles.compactClock}>{event.time}</Text>
           </View>
           <Text style={styles.compactTitle} numberOfLines={2}>{event.title}</Text>
@@ -64,7 +64,7 @@ export function EventCard({ event, people, friendIds, compact = false }: { event
 
       <View style={styles.copy}>
         <View style={styles.topline}>
-          <Text style={[styles.category, { color: accent }]}>{event.category}</Text>
+          <Text style={[styles.category, { color: accent }]}>{event.category}{event.recurrence?' · WEEKLY':''}</Text>
           <Text style={styles.location} numberOfLines={1}>{event.location}</Text>
         </View>
         <Text style={styles.title} numberOfLines={2}>{event.title}</Text>
@@ -89,7 +89,7 @@ export function FeaturedEvent({ event, people, friendIds }: { event: FomoEvent; 
       {event.cover ? <Image source={{ uri: event.cover }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <View style={[StyleSheet.absoluteFill, { backgroundColor: categorySoft(event.category) }]} />}
       <View style={styles.featuredShade} />
       <View style={styles.featuredTop}>
-        <BlurView intensity={48} tint="systemUltraThinMaterialDark" style={styles.featuredChip}><View style={[styles.featuredDot, { backgroundColor: categoryColor(event.category) }]} /><Text style={styles.featuredChipText}>{event.category}</Text></BlurView>
+        <BlurView intensity={48} tint="systemUltraThinMaterialDark" style={styles.featuredChip}><View style={[styles.featuredDot, { backgroundColor: categoryColor(event.category) }]} /><Text style={styles.featuredChipText}>{event.recurrence?'WEEKLY · ':''}{event.category}</Text></BlurView>
         <BlurView intensity={48} tint="systemUltraThinMaterialDark" style={styles.featuredMetaPill}><Text style={styles.featuredMeta}>{event.dateLabel} · {event.time}</Text></BlurView>
       </View>
       <View style={styles.featuredBottom}>

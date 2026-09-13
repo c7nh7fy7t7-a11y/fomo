@@ -16,6 +16,7 @@ import { friendlyErrorMessage } from '@/utils/errors';
 import { eventLocationForViewer } from '@/utils/eventLocation';
 import { showReportSheet } from '@/utils/reporting';
 import { backendConfigured, supabase } from '@/lib/supabase';
+import { weeklyScheduleLabel, weeklyTimeLabel } from '@/utils/weeklyRotation';
 
 export default function EventDetail() {
   const router = useRouter();
@@ -196,6 +197,7 @@ export default function EventDetail() {
           <View style={styles.heroShade} />
           <View style={styles.category}><Text style={styles.categoryText}>{event.category}</Text></View>
           <View style={styles.heroCopy}>
+            {event.recurrence?<Text style={styles.recurrenceHero}>{event.recurrence.weeklyStaple?'🔥 WEEKLY STAPLE':'↻ WEEKLY'}</Text>:null}
             <Text style={styles.date}>{event.dateLabel} · {event.time}</Text>
             <Text style={styles.title} numberOfLines={2}>{event.title}</Text>
             <View style={styles.placeRow}>
@@ -239,6 +241,7 @@ export default function EventDetail() {
 
           <View style={styles.infoCard}>
             <Info icon="calendar-outline" label="Date & time" value={`${event.dateLabel} · ${event.time}`} />
+            {event.recurrence?<Info icon="repeat-outline" label="Repeats" value={`${event.recurrence.weeklyStaple?'🔥 ':''}${weeklyScheduleLabel(event)} · ${weeklyTimeLabel(event)}`} accent/>:null}
             <Info icon="location-outline" label="Area" value={event.location} />
             <Info icon={canSeeExact ? 'lock-open-outline' : 'lock-closed-outline'} label="Exact location" value={exactLocationCopy} accent={!canSeeExact} last />
           </View>
@@ -538,6 +541,7 @@ const styles = StyleSheet.create({
   category: { position: 'absolute', left: 15, top: 15, minHeight: 30, borderRadius: 15, backgroundColor: 'rgba(9,11,14,.82)', paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,.14)' },
   categoryText: { color: colors.white, fontSize: 10.5, fontWeight: '900', letterSpacing: .6 },
   heroCopy: { position: 'absolute', left: 18, right: 18, bottom: 18 },
+  recurrenceHero: { color: colors.white, fontSize: 9.5, fontWeight: '900', letterSpacing: .85, marginBottom: 6 },
   date: { color: colors.accent2, fontSize: 12, fontWeight: '900', letterSpacing: .65 },
   title: { color: colors.white, fontSize: 30, lineHeight: 32, fontWeight: '900', letterSpacing: -1.1, marginTop: 6 },
   placeRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },

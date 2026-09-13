@@ -52,7 +52,8 @@ export function CreatePostModal({ visible, initialKind='image', events, people, 
   },[currentUserId,events]);
   const eventResults=useMemo(()=>{
     const query=eventSearch.trim().toLowerCase(); if(!query)return [];
-    return events.filter((event)=>event.title.toLowerCase().includes(query)).sort((a,b)=>eventTime(b)-eventTime(a)).slice(0,8);
+    const now=Date.now();
+    return events.filter((event)=>event.title.toLowerCase().includes(query)).sort((a,b)=>Math.abs(eventTime(a)-now)-Math.abs(eventTime(b)-now)).slice(0,8);
   },[eventSearch,events]);
   const eventChoices=eventSearch.trim()?eventResults:recentEvents;
 

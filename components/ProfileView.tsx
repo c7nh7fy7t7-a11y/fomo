@@ -12,6 +12,7 @@ import { EventCard } from './EventCard';
 import { colors } from '@/theme/colors';
 import { friendlyErrorMessage } from '@/utils/errors';
 import { showReportSheet } from '@/utils/reporting';
+import { selectNextWeeklyOccurrences } from '@/utils/weeklyRotation';
 
 const tabs=['POSTS','EVENTS','TAGGED'] as const;
 type Stats={followers:number;following:number;friends:number;mutualFriends:number};
@@ -33,7 +34,8 @@ export function ProfileView({personId,isOwn=false}:{personId:string;isOwn?:boole
 
   const userPosts=posts.filter((post)=>post.authorId===person.id);
   const tagged=posts.filter((post)=>post.taggedUserIds.includes(person.id));
-  const hosted=events.filter((event)=>event.hostId===person.id||(event.cohostIds??[]).includes(person.id));
+  const nextWeeklyIds=new Set(selectNextWeeklyOccurrences(events).map((event)=>event.id));
+  const hosted=events.filter((event)=>(event.hostId===person.id||(event.cohostIds??[]).includes(person.id))&&(!event.recurrence||nextWeeklyIds.has(event.id)));
   const saved=isOwn?events.filter((event)=>savedEventIds.includes(event.id)):[];
   const following=followingIds.includes(person.id); const followsMe=followerIds.includes(person.id); const isFriend=following&&followsMe;
   const relationshipLabel=isFriend?'Friends':following?'Following':followsMe?'Follow Back':'Follow';

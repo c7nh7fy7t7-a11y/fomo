@@ -3,6 +3,26 @@ export type ReactionKind = 'heart' | 'fire' | 'laugh' | 'wow' | 'clap';
 export type FeedMediaType = 'image' | 'video';
 export type VerificationType = 'founder' | 'organizer' | 'official';
 export type InterestKey = 'parties' | 'sports' | 'clubs' | 'study' | 'campus' | 'music' | 'social' | 'gaming';
+export type RecurrenceVerificationStatus = 'verified' | 'community_confirmed' | 'seasonal' | 'unverified' | 'inactive';
+
+export type EventRecurrence = {
+  seriesId: string;
+  type: 'weekly';
+  dayOfWeek: number;
+  startTime: string;
+  endTime?: string;
+  startDate: string;
+  endDate?: string;
+  timezone: string;
+  active: boolean;
+  curated: boolean;
+  weeklyStaple: boolean;
+  sortPriority: number;
+  verificationStatus: RecurrenceVerificationStatus;
+  verifiedAt?: string;
+  occurrenceStartsAt: string;
+  occurrenceEndsAt?: string;
+};
 
 export type NotificationPreferences = { messages:boolean; social:boolean; events:boolean; reminders:boolean };
 export type OrganizerProfile = {
@@ -43,6 +63,7 @@ export type FomoEvent = {
   exactLongitude?: number;
   photos: string[];
   trending?: boolean;
+  recurrence?: EventRecurrence;
 };
 
 export type FeedComment = {

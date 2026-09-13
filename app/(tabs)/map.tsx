@@ -11,6 +11,7 @@ import { categoryColor, categorySoft, colors } from '@/theme/colors';
 import { AvatarStack } from '@/components/AvatarStack';
 import { GlassSurface } from '@/components/GlassSurface';
 import { eventLocationForViewer } from '@/utils/eventLocation';
+import { dateKeyInTimeZone, daysFromDateKey, selectNextWeeklyOccurrences, SASKATOON_TIME_ZONE } from '@/utils/weeklyRotation';
 
 const iconFor=(category:string):keyof typeof Ionicons.glyphMap=>category==='Study'?'book':category==='Clubs'?'people':category==='Sports & Rec'?'football':category==='Campus Event'?'school':'sparkles';
 const mapFilters=[
@@ -27,7 +28,16 @@ export default function MapScreen(){
   const [filter,setFilter]=useState<MapFilter>('All');
   const [selected,setSelected]=useState<FomoEvent|undefined>(events[0]);
   const [tray,setTray]=useState<TrayState>('partial');
-  const visible=useMemo(()=>filter==='Friends'?events.filter((e)=>e.attendeeIds.some((id)=>friendIds.includes(id))):filter==='Public'?events.filter((e)=>e.privacy==='Public'):events,[events,filter,friendIds]);
+  const mapEvents=useMemo(()=>{
+    const nextWeeklyIds=new Set(selectNextWeeklyOccurrences(events).map((event)=>event.id));
+    return events.filter((event)=>{
+      if(!event.recurrence)return true;
+      const timeZone=event.recurrence.timezone??SASKATOON_TIME_ZONE;
+      const delta=daysFromDateKey(event.eventDate,dateKeyInTimeZone(new Date(),timeZone));
+      return nextWeeklyIds.has(event.id)&&delta>=0&&delta<=21;
+    });
+  },[events]);
+  const visible=useMemo(()=>filter==='Friends'?mapEvents.filter((e)=>e.attendeeIds.some((id)=>friendIds.includes(id))):filter==='Public'?mapEvents.filter((e)=>e.privacy==='Public'):mapEvents,[mapEvents,filter,friendIds]);
   const locationFor=(event:FomoEvent)=>eventLocationForViewer(event,currentUser?.id);
   const trayHeight=tray==='collapsed'?88:tray==='partial'?Math.min(300,height*.38):Math.min(530,height*.66);
   const bottomNavClearance=88+Math.max(insets.bottom,8);

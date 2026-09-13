@@ -9,6 +9,7 @@ import { EventCard } from '@/components/EventCard';
 import { GlassSurface } from '@/components/GlassSurface';
 import { useApp } from '@/context/AppContext';
 import { colors } from '@/theme/colors';
+import { selectNextWeeklyOccurrences } from '@/utils/weeklyRotation';
 
 const tabs=['PEOPLE','EVENTS','CLUBS'] as const;
 const filters=['All','Today','This week','Parties','Sports','Study','Clubs','Campus','Music','Other'] as const;
@@ -17,15 +18,17 @@ export default function SearchScreen(){
  const router=useRouter(); const {people,events,organizers,followingIds,followerIds,friendIds,currentUser,toggleFollow}=useApp();
  const [tab,setTab]=useState<(typeof tabs)[number]>('PEOPLE'); const [q,setQ]=useState(''); const [filter,setFilter]=useState<(typeof filters)[number]>('All'); const [busyId,setBusyId]=useState<string>();
  const query=lower(q.trim());
+ const nextWeeklyIds=useMemo(()=>new Set(selectNextWeeklyOccurrences(events).map((event)=>event.id)),[events]);
  const personResults=useMemo(()=>people.filter(p=>p.id!==currentUser.id&&(!query||[p.name,p.username,p.program].some(v=>lower(v).includes(query)))),[people,currentUser.id,query]);
  const eventResults=useMemo(()=>events.filter(e=>{
+  if(e.recurrence&&!nextWeeklyIds.has(e.id))return false;
   const match=!query||[e.title,e.category,e.location,people.find(p=>p.id===e.hostId)?.name,organizers.find(o=>o.profileId===e.hostId)?.displayName].some(v=>lower(v).includes(query)); if(!match)return false;
   const now=new Date(); const d=new Date(`${e.eventDate}T12:00:00`); const days=(d.getTime()-new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime())/86400000;
   if(filter==='Today')return Math.floor(days)===0; if(filter==='This week')return days>=0&&days<=7;
   if(filter==='Parties')return /social|party/i.test(e.category); if(filter==='Sports')return /sport/i.test(e.category); if(filter==='Study')return /study/i.test(e.category);
   if(filter==='Clubs')return /club/i.test(e.category); if(filter==='Campus')return /campus/i.test(e.category); if(filter==='Music')return /music/i.test(e.category);
   if(filter==='Other')return !/(social|party|sport|study|club|campus|music)/i.test(e.category); return true;
- }),[events,people,organizers,query,filter]);
+ }),[events,people,organizers,query,filter,nextWeeklyIds]);
  const organizerResults=useMemo(()=>organizers.filter(o=>!query||[o.displayName,o.handle,o.bio].some(v=>lower(v).includes(query))),[organizers,query]);
  const relation=(id:string)=>followingIds.includes(id)&&followerIds.includes(id)?'Friends':followingIds.includes(id)?'Following':followerIds.includes(id)?'Follow Back':'Follow';
  return <SafeAreaView style={styles.safe} edges={['top']}><View style={styles.head}><Pressable onPress={()=>router.back()} style={styles.back}><Ionicons name="arrow-back" color={colors.text} size={21}/></Pressable><GlassSurface style={styles.search} intensity={56}><Ionicons name="search" color={colors.muted} size={18}/><TextInput autoFocus value={q} onChangeText={setQ} placeholder="People, events, clubs…" placeholderTextColor={colors.subtle} style={styles.input} autoCapitalize="none"/></GlassSurface></View>

@@ -54,6 +54,7 @@ function RootNavigator(){
           <Stack.Screen name="post/[id]" options={{ presentation: 'card', gestureEnabled: true }} />
           <Stack.Screen name="edit-profile" options={{ presentation: 'card', gestureEnabled: true }} />
           <Stack.Screen name="create-event" options={{ presentation: 'card', gestureEnabled: true }} />
+          <Stack.Screen name="weekly-rotation" options={{ presentation: 'card', gestureEnabled: true }} />
           <Stack.Screen name="notifications" options={{ presentation: 'card', gestureEnabled: true }} />
           <Stack.Screen name="search" options={{ presentation: 'card', gestureEnabled: true }} />
           <Stack.Screen name="notification-settings" options={{ presentation: 'card', gestureEnabled: true }} />
