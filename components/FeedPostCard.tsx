@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useEvent } from 'expo';
@@ -57,7 +57,7 @@ export function FeedPostCard({
   const reduceMotion=useReducedMotion();
   const [imageAspect,setImageAspect]=useState<number|undefined>();
   const [videoToggleToken,setVideoToggleToken]=useState(0);
-  const [mediaLoading,setMediaLoading]=useState(post.mediaType!=='video'&&Boolean(post.mediaUrl));
+  const [mediaLoading,setMediaLoading]=useState(Platform.OS!=='web'&&post.mediaType!=='video'&&Boolean(post.mediaUrl));
   const [mediaFailed,setMediaFailed]=useState(false);
   const [commentBody,setCommentBody]=useState('');
   const [commentSending,setCommentSending]=useState(false);
@@ -79,6 +79,7 @@ export function FeedPostCard({
   const firstComment = post.comments[post.comments.length - 1];
   const firstCommentAuthor = firstComment ? people.find((p) => p.id === firstComment.authorId) : undefined;
   const mediaType=post.mediaType==='video'?'video':'image';
+  const imageSource=useMemo(()=>post.mediaUrl?{uri:post.mediaUrl}:undefined,[post.mediaUrl]);
   const metadataAspect=post.mediaWidth&&post.mediaHeight?post.mediaWidth/post.mediaHeight:undefined;
   const rawAspect=metadataAspect??imageAspect??1.05;
   const boundedAspect=Math.max(.62,Math.min(1.85,rawAspect));
@@ -86,8 +87,18 @@ export function FeedPostCard({
   const mediaHeight=Math.max(220,Math.min(560,mediaWidth/boundedAspect));
 
   useEffect(() => { onViewed(); }, [post.id]);
-  useEffect(()=>{setMediaFailed(false);setMediaLoading(post.mediaType!=='video'&&Boolean(post.mediaUrl));},[post.mediaUrl,post.mediaType]);
+  useEffect(()=>{setMediaFailed(false);setMediaLoading(Platform.OS!=='web'&&post.mediaType!=='video'&&Boolean(post.mediaUrl));},[post.mediaUrl,post.mediaType]);
   useEffect(()=>()=>{if(singleTapTimer.current)clearTimeout(singleTapTimer.current);rainParticles.forEach((particle)=>particle.stopAnimation());},[]);
+  const handleImageLoadStart=useCallback(()=>{if(Platform.OS!=='web')setMediaLoading(true);},[]);
+  const handleImageLoad=useCallback((event:any)=>{
+    setMediaLoading(false);
+    const source=event.nativeEvent.source;
+    if(source?.width&&source?.height){
+      const nextAspect=source.width/source.height;
+      setImageAspect((current)=>current===nextAspect?current:nextAspect);
+    }
+  },[]);
+  const handleImageError=useCallback(()=>{setMediaLoading(false);setMediaFailed(true);},[]);
 
   const showHeartBurst = () => {
     heartBurst.stopAnimation(); heartBurst.setValue(0);
@@ -123,8 +134,8 @@ export function FeedPostCard({
     </View>
 
     <Pressable onPress={handleMediaPress} pressRetentionOffset={{top:5,left:5,right:5,bottom:5}} style={[styles.mediaWrap,{height:mediaHeight}]}>
-      {post.mediaUrl&&!mediaFailed?mediaType==='video'?<><View style={[StyleSheet.absoluteFill,styles.mediaMissing]}><Ionicons name="videocam-outline" color={colors.subtle} size={30}/></View><InlineVideo uri={post.mediaUrl} toggleToken={videoToggleToken} shouldPlay={videoActive&&!commentsExpanded}/></>:<Image source={{uri:post.mediaUrl}} style={StyleSheet.absoluteFill} resizeMode="cover" onLoadStart={()=>setMediaLoading(true)} onLoad={(e)=>{setMediaLoading(false);const src=e.nativeEvent.source;if(src?.width&&src?.height)setImageAspect(src.width/src.height);}} onError={()=>{setMediaLoading(false);setMediaFailed(true);}}/>:<View style={[StyleSheet.absoluteFill,styles.mediaMissing]}><Ionicons name={mediaType==='video'?'videocam-outline':'image-outline'} color={colors.subtle} size={34}/><Text style={styles.mediaMissingText}>Media unavailable</Text></View>}
-      {mediaLoading?<View pointerEvents="none" style={[StyleSheet.absoluteFill,styles.mediaLoading]}><Animated.View style={styles.loadingShimmer}/></View>:null}
+      {post.mediaUrl&&!mediaFailed?mediaType==='video'?<><View style={[StyleSheet.absoluteFill,styles.mediaMissing]}><Ionicons name="videocam-outline" color={colors.subtle} size={30}/></View><InlineVideo uri={post.mediaUrl} toggleToken={videoToggleToken} shouldPlay={videoActive&&!commentsExpanded}/></>:<Image source={imageSource!} style={StyleSheet.absoluteFill} resizeMode="cover" onLoadStart={handleImageLoadStart} onLoad={handleImageLoad} onError={handleImageError}/>:<View style={[StyleSheet.absoluteFill,styles.mediaMissing]}><Ionicons name={mediaType==='video'?'videocam-outline':'image-outline'} color={colors.subtle} size={34}/><Text style={styles.mediaMissingText}>Media unavailable</Text></View>}
+      {Platform.OS!=='web'&&mediaLoading?<View pointerEvents="none" style={[StyleSheet.absoluteFill,styles.mediaLoading]}><Animated.View style={styles.loadingShimmer}/></View>:null}
       <View pointerEvents="none" style={styles.mediaEdge}/>
       {mediaType==='video'&&post.mediaDurationMs?<View pointerEvents="none" style={styles.duration}><Text style={styles.durationText}>{formatDuration(post.mediaDurationMs)}</Text></View>:null}
       <Animated.View pointerEvents="none" style={[styles.heartBurst,{opacity:heartBurst,transform:[{scale:heartBurst.interpolate({inputRange:[0,1],outputRange:[.55,1]})},{rotate:'-7deg'}]}]}><Ionicons name="heart" color="#FFFFFF" size={88} style={styles.heartShadow}/></Animated.View>

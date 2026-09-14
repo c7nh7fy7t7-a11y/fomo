@@ -24,13 +24,14 @@ async function uploadFeedMedia(userId: string, postId: string, input: {
   return path;
 }
 
-export async function loadFeed(limit = 40): Promise<FeedPost[]> {
+async function loadPosts(limit:number,authorId?:string):Promise<FeedPost[]> {
   if (!supabase) throw new Error('Supabase is not configured.');
-  const postsResult = await supabase
+  let query = supabase
     .from('feed_posts')
     .select('id, author_id, event_id, caption, created_at')
-    .order('created_at', { ascending: false })
-    .range(0, Math.max(0, limit - 1));
+    .order('created_at', { ascending: false });
+  if(authorId)query=query.eq('author_id',authorId);
+  const postsResult=await query.range(0,Math.max(0,limit-1));
   if (postsResult.error) throw postsResult.error;
 
   const rows = postsResult.data ?? [];
@@ -92,6 +93,9 @@ export async function loadFeed(limit = 40): Promise<FeedPost[]> {
     }];
   });
 }
+
+export function loadFeed(limit=40){return loadPosts(limit);}
+export function loadProfilePosts(profileId:string,limit=120){return loadPosts(limit,profileId);}
 
 export async function createFeedPost(userId: string, input: {
   uri: string; caption: string; eventId?: string; taggedUserIds: string[];

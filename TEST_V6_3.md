@@ -39,6 +39,7 @@ Compare Login, Feed, Discover, Search, Event, Profile, Messages, Chat, Notificat
 - Trigger each reaction repeatedly and confirm counts and selected states stay accurate and every emoji-rain burst disappears cleanly.
 - Confirm video remains responsive while reaction buttons are used.
 - Confirm no obvious memory or frame-rate degradation after repeated reactions.
+- Open Profile after scrolling or refreshing the Feed and confirm every authored post appears, including posts older than the initial Feed page.
 
 ## 7. First-launch app tour
 - Use an account/device that has not completed the app tour and confirm it appears only after authenticated tabs load.

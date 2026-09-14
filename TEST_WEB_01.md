@@ -19,11 +19,11 @@ Use an ordinary test account and client-safe values from `.env.example`. Never p
 
 ## Initial shared routes
 
-1. Home: switch between All and Friends, scroll naturally, and test a reaction and inline comment.
+1. Home: switch between All and Friends, scroll naturally, and test a reaction and inline comment. Confirm already-loaded post images do not flash, disappear, or reload while reacting, expanding comments, or resizing the browser.
 2. Discover: switch between All, Friends, and Public; confirm event cards open the correct event.
 3. Events: check Upcoming, Going, Hosting, and Past; confirm Create opens the existing event flow.
 4. Messages: open an existing conversation, start a new one, send a message, and confirm realtime updates.
-5. Profile: confirm the current profile, counts, posts/events, and Settings route render correctly.
+5. Profile: confirm the current profile, counts, posts/events, and Settings route render correctly. Confirm older posts still appear even when they are outside the initial Home feed page.
 
 ## Location privacy
 
