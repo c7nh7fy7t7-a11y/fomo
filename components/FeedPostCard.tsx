@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Animated, Image, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useEvent } from 'expo';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -53,6 +53,7 @@ export function FeedPostCard({
 }) {
   const router = useRouter();
   const {width}=useWindowDimensions();
+  const [cardWidth,setCardWidth]=useState<number>();
   const reduceMotion=useReducedMotion();
   const [imageAspect,setImageAspect]=useState<number|undefined>();
   const [videoToggleToken,setVideoToggleToken]=useState(0);
@@ -81,7 +82,7 @@ export function FeedPostCard({
   const metadataAspect=post.mediaWidth&&post.mediaHeight?post.mediaWidth/post.mediaHeight:undefined;
   const rawAspect=metadataAspect??imageAspect??1.05;
   const boundedAspect=Math.max(.62,Math.min(1.85,rawAspect));
-  const mediaWidth=Math.max(260,width-20);
+  const mediaWidth=Math.max(260,cardWidth??(Platform.OS==='web'?Math.min(width-20,760):width-20));
   const mediaHeight=Math.max(220,Math.min(560,mediaWidth/boundedAspect));
 
   useEffect(() => { onViewed(); }, [post.id]);
@@ -109,7 +110,7 @@ export function FeedPostCard({
   const handleMediaPress=()=>{const now=Date.now(),gap=now-lastMediaTap.current;if(gap>=70&&gap<=285){if(singleTapTimer.current){clearTimeout(singleTapTimer.current);singleTapTimer.current=null;}lastMediaTap.current=0;doubleLike();return;}lastMediaTap.current=now;if(mediaType==='video'){if(singleTapTimer.current)clearTimeout(singleTapTimer.current);singleTapTimer.current=setTimeout(()=>{setVideoToggleToken(n=>n+1);lastMediaTap.current=0;},300);}};
   if (!author) return null;
 
-  return <View style={styles.post}>
+  return <View style={styles.post} onLayout={(event)=>{const next=Math.round(event.nativeEvent.layout.width);if(next>0&&next!==cardWidth)setCardWidth(next);}}>
     <View style={styles.header}>
       <Pressable accessibilityRole="button" accessibilityLabel={`View ${author.name}'s profile`} onPress={()=>{Haptics.selectionAsync().catch(()=>{});router.push(`/profile/${author.id}`);}} style={({pressed})=>[styles.authorTap,pressed&&styles.avatarPressed]}>
         <Avatar person={author} size={48} circular/>

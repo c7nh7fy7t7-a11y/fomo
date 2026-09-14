@@ -139,11 +139,11 @@ export const people: Person[] = [
 export const seedEvents: FomoEvent[] = [
   {
     id: 'cq-kickback', title: 'College Quarter Kickback', category: 'Social', day: 'Friday', eventDate: '2026-08-21', dateLabel: 'FRI · AUG 21',
-    time: '9:30 PM', location: 'College Quarter', exactLocation: 'College Quarter · Unit 402',
+    time: '9:30 PM', location: 'College Quarter',
     description: 'Back-to-campus kickback. Music, cards, and a packed living room. Request access for the exact unit.',
     privacy: 'Request', cover: 'https://images.unsplash.com/photo-1527529482837-4698179dc6ce?w=1200&auto=format&fit=crop&q=85',
     hostId: 'fox', attendeeIds: ['fox','maya','eric'], latitude: 52.129, longitude: -106.634,
-    exactLatitude: 52.12893, exactLongitude: -106.63358, photos: [], trending: true,
+    photos: [], trending: true,
   },
   {
     id: 'cmpt-study', title: 'CMPT 145 Study Sprint', category: 'Study', day: 'Sunday', eventDate: '2026-08-23', dateLabel: 'SUN · AUG 23',

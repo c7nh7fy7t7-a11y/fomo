@@ -2,11 +2,11 @@
 
 FOMO is a dark-first campus social app for discovering events, seeing what friends are doing, sharing posts, and coordinating through direct messages. This repository contains **FOMO V6.3 — Liquid Social**, built on the working V6.2 Speed/Discovery foundation.
 
-V6.3 introduces the graphite and electric-coral design system, Liquid-Glass-style surfaces, tactile controls, a floating navigation bar, and the signature hold → slide → release reaction gesture with five reactions: ❤️ 🔥 😂 😮 👏.
+V6.3 uses a graphite and restrained-periwinkle design system, Liquid-Glass-style surfaces, tactile controls, a floating navigation bar, and a one-tap reaction row with five reactions: ❤️ 🔥 😂 😮 👏.
 
 ## Included
 
-- Expo SDK 54 / React Native application for iOS and Android
+- Expo SDK 57 / React Native application for iOS, Android, and web
 - Expo Router navigation
 - Supabase authentication, database, storage, realtime, and Edge Function integration
 - Feed posts with photos, videos, comments, reactions, tagging, and profiles
@@ -51,6 +51,12 @@ See [V6_3_CHANGES.md](V6_3_CHANGES.md) for the release details and [TEST_V6_3.md
    npm start
    ```
 
+   Or start the browser client directly:
+
+   ```bash
+   npm run web
+   ```
+
 On macOS, `START_FOMO.command` and `START_FOMO_TUNNEL.command` provide the same normal and tunnel launch flows.
 
 ## Supabase
@@ -65,7 +71,7 @@ The push notification Edge Function source is under `supabase/functions/send-fom
 
 ## Validation
 
-Follow the regression plans in the `TEST_*.md` files. The V6.3 reaction gesture, emoji fountain, reduced-motion behavior, and haptic sequence require testing on a physical iPhone; Android must also receive a full regression pass before release.
+Follow the regression plans in the `TEST_*.md` files. Use [TEST_WEB_01.md](TEST_WEB_01.md) for the browser-foundation acceptance pass. The V6.3 reaction gesture, emoji fountain, reduced-motion behavior, and haptic sequence require testing on a physical iPhone; Android must also receive a full regression pass before release.
 
 The packaged application passed its static syntax, local-import, and configuration checks. The Supabase Edge Function uses Deno's remote-module/runtime types and should be checked with the Supabase/Deno toolchain rather than the React Native TypeScript configuration.
 

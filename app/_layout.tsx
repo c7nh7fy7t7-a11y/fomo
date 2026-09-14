@@ -1,30 +1,15 @@
-import { Stack, useRouter } from 'expo-router';
-import { useEffect } from 'react';
-import * as Notifications from 'expo-notifications';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import * as SplashScreen from 'expo-splash-screen';
 import { AppProvider, useApp } from '@/context/AppContext';
+import { PlatformRuntime } from '@/components/PlatformRuntime';
+import { WebAppShell } from '@/components/WebAppShell';
 import { colors } from '@/theme/colors';
 
-SplashScreen.setOptions({ duration: 350, fade: true });
-Notifications.setNotificationHandler({ handleNotification: async () => ({ shouldShowBanner:true, shouldShowList:true, shouldPlaySound:false, shouldSetBadge:false }) });
-
 function RootNavigator(){
-  const router=useRouter();
   const {isAuthenticated,demoMode,needsOnboarding}=useApp();
   const appReady=demoMode||(isAuthenticated&&needsOnboarding===false);
-  useEffect(()=>{
-    const sub=Notifications.addNotificationResponseReceivedListener((response)=>{
-      const route=response.notification.request.content.data?.route;
-      if(typeof route==='string'&&route.startsWith('/')) router.push(route as any);
-    });
-    Notifications.getLastNotificationResponseAsync().then((response)=>{
-      const route=response?.notification.request.content.data?.route;
-      if(typeof route==='string'&&route.startsWith('/')) setTimeout(()=>router.push(route as any),100);
-    }).catch(()=>{});
-    return ()=>sub.remove();
-  },[router]);
-  return <>
+  const navigator=<>
+    <PlatformRuntime/>
     <StatusBar style="light" />
     <Stack
         screenOptions={{
@@ -62,8 +47,9 @@ function RootNavigator(){
           <Stack.Screen name="settings" options={{ presentation: 'card', gestureEnabled: true }} />
           <Stack.Screen name="advanced-settings" options={{ presentation: 'card', gestureEnabled: true }} />
         </Stack.Protected>
-      </Stack>
+    </Stack>
   </>;
+  return appReady?<WebAppShell>{navigator}</WebAppShell>:navigator;
 }
 
 export default function RootLayout() {

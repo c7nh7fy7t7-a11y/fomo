@@ -95,6 +95,7 @@ export default function TabLayout(){
     <Tabs.Screen name="messages" options={{title:'Messages'}}/>
     <Tabs.Screen name="profile" options={{title:'You'}}/>
     <Tabs.Screen name="friends" options={{href:null}}/>
+    <Tabs.Screen name="events" options={{href:null}}/>
   </Tabs>{isAuthenticated||demoMode?<FirstLaunchTutorial userId={currentUser.id}/>:null}</>;
 }
 const styles=StyleSheet.create({

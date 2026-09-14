@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import {
   ChatMessage, ConversationSummary, FeedMediaType, FeedPost, FomoEvent, InterestKey, NotificationPreferences, OrganizerProfile, people as seedPeople, Person, Privacy,
   ReactionKind, seedConversations, seedEvents, seedMessages, seedPosts, SocialNotification,
@@ -463,7 +463,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     deactivateSession(!backendConfigured);
     if (backendConfigured && supabase && !demoMode) {
       if(oldId)await unregisterPushTokens(oldId).catch(()=>{});
-      const result=await supabase.auth.signOut();
+      const result=Platform.OS==='web'
+        ? await supabase.auth.signOut({scope:'local'})
+        : await supabase.auth.signOut();
       if(result.error){const localResult=await supabase.auth.signOut({scope:'local'});if(localResult.error)throw localResult.error;}
     }
   };
