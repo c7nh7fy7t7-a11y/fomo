@@ -11,8 +11,8 @@ Do these in order. Do not call V6 stable until the important multi-user checks p
 6. Press/swipe Back. The completed Create form must NOT reopen.
 
 ## Checkpoint 2 — Follow → Friends
-1. Ethan follows Fox → Ethan sees Following; Fox sees Follow Back.
-2. Fox follows Ethan → both show Friends.
+1. Ethan follows Fox → Ethan sees Following; Fox sees Follow Back and receives one “followed you” notification.
+2. Fox follows Ethan → both show Friends. Ethan receives one “followed you back” notification; Fox does not receive a second or backwards friendship notification.
 3. Ethan unfollows Fox → friendship disappears but Fox still follows Ethan; Ethan sees Follow Back.
 4. Confirm notifications appear for follow/friend changes.
 
